@@ -7,7 +7,7 @@
 #   dd.run(loop, every_s=5)
 #
 # Qué hace run() además de llamar a tu función:
-#  - Arranca con los 8 relays apagados.
+#  - Arranca con todos los relays apagados.
 #  - Sincroniza la hora (RTC de la placa + NTP si hay WiFi configurado).
 #  - Cada 1 s: re-asienta el chip de relays si se reseteó (heal) y aplica
 #    los topes de tiempo encendido.

@@ -1,4 +1,5 @@
-# dd/inputs.py — entradas digitales DI1..DI8 (contacto seco contra DGND)
+# dd/inputs.py — entradas digitales DI1..DIn (contacto seco contra DGND)
+# Sólo en placas que las tienen (ETH-8DI-8RO: 8). En las demás, closed() da error.
 # Licencia Apache-2.0 — DataDruida
 #
 # Contacto cerrado = True. Un flotante de tanque, un pulsador o un fin de
@@ -17,8 +18,10 @@ def _init():
 
 
 def closed(n):
-    """True si el contacto de DIn (1..8) está cerrado."""
+    """True si el contacto de DIn está cerrado."""
     p = _init()
+    if not p:
+        raise ValueError("esta placa no tiene entradas digitales")
     if not 1 <= n <= len(p):
         raise ValueError("entrada %d no existe (1..%d)" % (n, len(p)))
     return p[n - 1].value() == 0

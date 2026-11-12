@@ -49,9 +49,24 @@ en iPhone/iPad.
 
 ## Placas
 
-| Placa | Estado |
-|---|---|
-| Waveshare ESP32-S3-ETH-8DI-8RO (8 relays, 8 DI, RS485, RTC) | Probado por DataDruida |
+| Placa | Relays | Entradas | RTC | Extras | Alimentación | Estado |
+|---|---|---|---|---|---|---|
+| Waveshare ESP32-S3-ETH-8DI-8RO | 8 (chip TCA9554) | 8 DI | Sí | Ethernet | 7–36 V DC | Probado por DataDruida |
+| Waveshare ESP32-S3-Relay-6CH | 6 (GPIO) | — | No: hora por NTP | buzzer, LED RGB | 7–36 V DC | Sin probar |
+| Waveshare ESP32-S3-Relay-1CH | 1 (GPIO) | — | Sí | — | 5 V DC | Sin probar |
+
+La página guarda la placa elegida en `/dd_config.json` (`"board": "<id>"`) y el
+runtime arma relays, reloj y RS485 según ese modelo (`runtime/dd/board.py`). Sin
+esa clave asume la ETH-8DI-8RO. Para sumar una placa: agregala a `BOARDS` en
+`board.py` y a `catalog/catalog.json`, con tests en `tests/test_runtime.py`.
+
+Sin RTC (6CH), la hora sale sólo de internet: sin WiFi los horarios quedan
+apagados. En la 1CH el RS485 no cambia de dirección solo: el runtime maneja el
+pin DE (GPIO 21) en cada envío.
+
+**Pantallas:** las placas con pantalla RGB grande (4,3" y 7") no se pueden
+dibujar con MicroPython oficial (hace falta un firmware con LVGL). Por ahora no
+están en el catálogo.
 
 ## Sensores (RS485 Modbus, todos a 4800 8N1)
 
@@ -79,7 +94,7 @@ dd.sensors.seeed_setup("seeed-s-co2-03", 45)
 import dd
 
 th = dd.sensor("slicetex-th-mb-02s", 1)       # dict o None, nunca explota
-r = dd.relays()                               # relays 1..8
+r = dd.relays()                               # relays 1..N según la placa
 extractor = dd.Hysteresis(low=25, high=28, mode="down")
 
 def loop():
@@ -98,13 +113,16 @@ dd.run(loop, every_s=5)
 | `dd.Hysteresis(low, high, mode)` | `mode="down"` enfría/extrae, `"up"` calienta/humidifica/riega |
 | `dd.Cycle(on_s, off_s)` | pulso/pausa |
 | `dd.vpd(temp, hum)` | VPD en kPa |
-| `dd.inputs.closed(n)` | entrada digital DIn cerrada |
+| `dd.inputs.closed(n)` | entrada digital DIn cerrada (sólo placas con entradas) |
+| `dd.beep(ms, times)` | buzzer, si la placa tiene (si no, no hace nada) |
+| `dd.led(r, g, b)` | LED RGB, si la placa tiene; `dd.led(0)` lo apaga |
 | `dd.run(loop, every_s)` | bucle con seguridad (ver abajo) |
 
 ### Seguridad incluida
 
 - Los relays arrancan apagados, sin pulso al encender (latch antes que CONFIG).
-- Cada 1 s se re-asienta el chip de relays si un pico de tensión lo reseteó.
+- Cada 1 s se re-asienta el chip de relays si un pico de tensión lo reseteó
+  (en placas con relays por GPIO se vuelven a escribir las salidas).
 - `set_max_on(n, s)`: tope de encendido continuo por relay; si se cumple, el
   relay se apaga y queda bloqueado.
 - Watchdog por software: programa colgado → todo apagado y reinicio.

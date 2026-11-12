@@ -227,5 +227,96 @@ class ExamplesTest(unittest.TestCase):
                 self.assertEqual(board.i2c().tca.driven(), 0)
 
 
+class OtrasPlacasTest(unittest.TestCase):
+    """Relay-6CH y Relay-1CH: relays por GPIO, sin RTC / con pin DE."""
+
+    def setUp(self):
+        fakes.fresh()
+
+    def test_6ch_relays_por_gpio_sin_pulso(self):
+        board.select("waveshare-esp32-s3-relay-6ch")
+        r = dd.relays()
+        pins = [1, 2, 41, 42, 45, 46]
+        self.assertEqual(r.count, 6)
+        # nunca hubo un pin de relay en alto al iniciar
+        self.assertTrue(all(lvl == 0 for (g, lvl) in fakes.Pin.log if g in pins))
+        r.on(1)
+        r.on(6)
+        self.assertEqual([fakes.Pin.out[g] for g in pins], [1, 0, 0, 0, 0, 1])
+        with self.assertRaises(ValueError):
+            r.on(7)
+        r.all_off()
+        self.assertEqual([fakes.Pin.out[g] for g in pins], [0] * 6)
+
+    def test_6ch_tope_y_heal(self):
+        board.select("waveshare-esp32-s3-relay-6ch")
+        r = dd.relays()
+        r.set_max_on(3, 10)
+        r.on(3)
+        fakes.Pin.out[41] = 0            # algo bajó el pin por fuera
+        self.assertFalse(r.heal())       # GPIO: re-afirma sin contar como heal
+        self.assertEqual(fakes.Pin.out[41], 1)
+        advance(11)
+        self.assertEqual(r.enforce_limits(), [3])
+        self.assertEqual(fakes.Pin.out[41], 0)
+
+    def test_6ch_sin_rtc_ni_entradas(self):
+        board.select("waveshare-esp32-s3-relay-6ch")
+        self.assertIsNone(board.i2c())
+        self.assertIsNone(clock.read_rtc())
+        clock.write_rtc((2026, 11, 12, 10, 0, 0))   # no explota
+        with self.assertRaises(ValueError):
+            dd.inputs.closed(1)
+
+    def test_6ch_buzzer(self):
+        board.select("waveshare-esp32-s3-relay-6ch")
+        dd.beep(50, times=2)
+        self.assertEqual([lvl for (g, lvl) in fakes.Pin.log if g == 21], [0, 1, 0, 1, 0])
+
+    def test_extras_en_placa_sin_buzzer(self):
+        board.select("waveshare-esp32-s3-eth-8di-8ro")
+        dd.beep()          # no hace nada
+        dd.led(255, 0, 0)  # no hace nada
+
+    def test_1ch_relay_y_de_rs485(self):
+        board.select("waveshare-esp32-s3-relay-1ch")
+        r = dd.relays()
+        self.assertEqual(r.count, 1)
+        r.on(1)
+        self.assertEqual(fakes.Pin.out[47], 1)
+        b = modbus.bus()
+        b.uart.slaves[1] = {"baud": 4800, "regs": {(3, 0): 250}}
+        seen = []
+        orig = b.uart.write
+
+        def spy(req):
+            seen.append(fakes.Pin.out.get(21))
+            return orig(req)
+        b.uart.write = spy
+        self.assertEqual(b.read(1, 0, 1), [250])
+        self.assertEqual(seen, [1])                 # DE alto mientras transmite
+        self.assertEqual(fakes.Pin.out[21], 0)      # y bajo para escuchar
+
+    def test_1ch_rtc_en_su_bus(self):
+        board.select("waveshare-esp32-s3-relay-1ch")
+        clock.write_rtc((2026, 11, 12, 10, 30, 0))
+        self.assertEqual(clock.read_rtc(), (2026, 11, 12, 10, 30, 0))
+
+    def test_placa_desde_config(self):
+        import json
+        from dd import config
+        orig = config.load
+        config.load = lambda: {"board": "waveshare-esp32-s3-relay-6ch"}
+        try:
+            fakes.fresh()
+            self.assertEqual(board.current_id(), "waveshare-esp32-s3-relay-6ch")
+            config.load = lambda: {"board": "no-existe"}
+            fakes.fresh()
+            self.assertEqual(board.current_id(), board.DEFAULT)
+        finally:
+            config.load = orig
+            fakes.fresh()
+
+
 if __name__ == "__main__":
     unittest.main()
