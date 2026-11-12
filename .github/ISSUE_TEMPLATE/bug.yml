@@ -1,0 +1,21 @@
+name: Algo no anda
+description: Un programa, sensor o la carga por USB no funciona como esperabas
+labels: [bug]
+body:
+  - type: input
+    id: placa
+    attributes: { label: Placa, placeholder: Waveshare ESP32-S3-ETH-8DI-8RO }
+    validations: { required: true }
+  - type: input
+    id: sensores
+    attributes: { label: Sensores y sus ID Modbus, placeholder: "SLICETEX TH-MB-02S (ID 1)" }
+  - type: textarea
+    id: que
+    attributes: { label: Qué pasó y qué esperabas }
+    validations: { required: true }
+  - type: textarea
+    id: consola
+    attributes: { label: Lo que muestra la consola, render: text }
+  - type: textarea
+    id: programa
+    attributes: { label: El main.py, render: python }

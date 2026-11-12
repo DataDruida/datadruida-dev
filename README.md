@@ -107,6 +107,11 @@ node tools/sync-web.mjs ../druida-web-deploy
 
 Copia `runtime/`, `catalog/` y `examples/` a `public/developers/` del sitio.
 
+## Contribuir
+
+Ver [CONTRIBUTING.md](CONTRIBUTING.md). Bugs y sensores nuevos: abrí un
+issue con la plantilla que corresponda.
+
 ## Niveles de soporte
 
 1. **Ejemplos oficiales** — los mantiene DataDruida.
