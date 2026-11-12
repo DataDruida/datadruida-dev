@@ -9,6 +9,16 @@ programa en la placa con un botón. Todo desde el navegador.
 Este repo es la parte abierta (licencia **Apache-2.0**): el runtime `dd` para
 MicroPython, el catálogo de placas y sensores, y los ejemplos.
 
+## Cómo sumarte
+
+- **Usar la herramienta:** pedí acceso en https://app.datadruida.com.ar/developers
+  (cuenta de DataDruida + una solicitud corta; mientras haya cupo, entrás en el momento).
+- **Mejorar el código:** abrí un *issue* (bug o sensor nuevo, con las plantillas) o un
+  *pull request* siguiendo [CONTRIBUTING.md](CONTRIBUTING.md). Si dejás tu usuario de
+  GitHub en la solicitud, te sumamos al equipo del repo.
+- **Instalar y vender equipos:** si sos electricista, instalador o integrador y querés
+  trabajar con DruidaBot, contalo en la solicitud: tenemos un programa de instaladores.
+
 ## Qué es abierto y qué no
 
 DataDruida es *open core*: abrimos lo que corre en tu placa y cobramos lo que
