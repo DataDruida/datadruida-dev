@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "boards": [
+    {
+      "id": "waveshare-esp32-s3-eth-8di-8ro",
+      "brand": "Waveshare",
+      "name": "ESP32-S3-ETH-8DI-8RO",
+      "summary": "ESP32-S3 con 8 relays (10 A / 250 V), 8 entradas digitales aisladas, RS485, Ethernet y RTC.",
+      "chip": "ESP32-S3 (16 MB flash, 8 MB PSRAM)",
+      "firmware": "micropython-esp32s3",
+      "status": "verified",
+      "mains": true,
+      "io": {
+        "relays": 8,
+        "digital_inputs": 8,
+        "rs485": { "uart": 1, "tx": 17, "rx": 18, "baud": 4800 },
+        "i2c": { "sda": 42, "scl": 41 },
+        "rtc": "PCF85063"
+      }
+    }
+  ],
+  "sensors": [
+    { "id": "slicetex-th-mb-02s", "brand": "SLICETEX", "name": "TH-MB-02S", "kind": "Temperatura y humedad ambiente", "bus": "rs485", "values": ["temp", "hum"], "default_addr": 1, "baud": 4800, "status": "verified" },
+    { "id": "slicetex-soil-mb-thc-s", "brand": "SLICETEX", "name": "SOIL-MB-THC-S", "kind": "Suelo: humedad, temperatura y conductividad", "bus": "rs485", "values": ["soil_hum", "soil_temp", "ec"], "default_addr": 1, "baud": 4800, "status": "verified" },
+    { "id": "slicetex-soil-mb-npkphcth-s", "brand": "SLICETEX", "name": "SOIL-MB-NPKPHCTH-S", "kind": "Suelo: NPK, pH, conductividad, temperatura y humedad", "bus": "rs485", "values": ["soil_hum", "soil_temp", "ec", "ph", "n", "p", "k"], "default_addr": 1, "baud": 4800, "status": "unverified" },
+    { "id": "seeed-s-co2-03", "brand": "Seeed Studio", "name": "S-CO2-03", "kind": "CO₂ + temperatura y humedad", "bus": "rs485", "values": ["co2", "temp", "hum"], "default_addr": 45, "baud": 9600, "needs_setup": true, "status": "verified" },
+    { "id": "seeed-s-ec-01", "brand": "Seeed Studio", "name": "S-EC-01", "kind": "EC / TDS de agua", "bus": "rs485", "values": ["water_temp", "ec", "salinity", "tds"], "default_addr": 1, "baud": 9600, "needs_setup": true, "status": "unverified" },
+    { "id": "seeed-s-ph-orp-01a", "brand": "Seeed Studio", "name": "S-pH&ORP-01A", "kind": "pH, ORP y temperatura de agua", "bus": "rs485", "values": ["water_temp", "ph", "orp"], "default_addr": 1, "baud": 9600, "needs_setup": true, "status": "verified" },
+    { "id": "seeed-s-temp-vwc-ec-04a", "brand": "Seeed Studio", "name": "S-Temp&VWC&EC-04A", "kind": "Sustrato (coco): temperatura, humedad y EC", "bus": "rs485", "values": ["soil_temp", "soil_hum", "ec"], "default_addr": 1, "baud": 9600, "needs_setup": true, "status": "verified" }
+  ],
+  "status_labels": {
+    "verified": "Probado por DataDruida",
+    "unverified": "Sin probar en hardware",
+    "community": "Comunidad, sin verificar"
+  }
+}
