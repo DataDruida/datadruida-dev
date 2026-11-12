@@ -1,5 +1,5 @@
 # dd/modbus.py — Modbus RTU maestro sobre RS485 (MicroPython)
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 #
 # Un solo bus por placa. Todos los sensores del bus a la MISMA velocidad
 # (en DataDruida usamos 4800 8N1: SLICETEX viene así de fábrica y los Seeed

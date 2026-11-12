@@ -1,5 +1,5 @@
 # dd/config.py — configuración del equipo, FUERA del código
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 #
 # El WiFi y cualquier dato privado viven en /dd_config.json, que la página
 # de DataDruida escribe al cargar el programa. Nunca van en main.py: el

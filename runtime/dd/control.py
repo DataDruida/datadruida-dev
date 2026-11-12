@@ -1,5 +1,5 @@
 # dd/control.py — piezas de control reusables
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 
 
 class Hysteresis:

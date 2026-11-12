@@ -1,5 +1,5 @@
 # dd/clock.py — hora local: RTC PCF85063 de la placa + NTP si hay WiFi
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 #
 # El PCF85063 guarda hora LOCAL. Sin pila, después de un corte de luz queda
 # con basura o con la hora del corte: por eso se valida antes de usarla y se

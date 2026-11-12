@@ -1,5 +1,5 @@
 # dd/board.py — perfiles de placa
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 
 BOARDS = {
     "waveshare-esp32-s3-eth-8di-8ro": {

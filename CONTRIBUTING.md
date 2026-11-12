@@ -17,7 +17,9 @@ la página.
 1. Hacé un fork (o una rama, si sos del equipo) y trabajá en una rama propia.
 2. Corré los tests: `python tests/test_runtime.py` (Python 3.10+, no hace
    falta placa: hay una simulada en `tests/fakes.py`).
-3. Abrí un pull request contando qué cambia y **en qué hardware lo probaste**.
+3. Abrí un pull request contando qué cambia y **en qué hardware lo probaste**,
+   y tildá la casilla del [acuerdo de contribución (CLA)](CLA.md). Sin eso no
+   podemos mergear.
 4. Los tests corren solos en GitHub. Alguien del equipo revisa y mergea.
 
 ## Reglas del runtime (no negociables)

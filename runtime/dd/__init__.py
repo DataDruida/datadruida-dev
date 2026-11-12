@@ -1,5 +1,5 @@
 # dd — runtime DataDruida para MicroPython
-# Licencia MIT — DataDruida (https://app.datadruida.com.ar/developers)
+# Licencia Apache-2.0 — DataDruida (https://app.datadruida.com.ar/developers)
 #
 # API corta para programas hechos a mano o generados por Claude:
 #

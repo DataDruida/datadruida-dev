@@ -6,8 +6,25 @@ programa en la placa con un botón. Todo desde el navegador.
 
 👉 **https://app.datadruida.com.ar/developers**
 
-Este repo es la parte abierta (licencia MIT): el runtime `dd` para
+Este repo es la parte abierta (licencia **Apache-2.0**): el runtime `dd` para
 MicroPython, el catálogo de placas y sensores, y los ejemplos.
+
+## Qué es abierto y qué no
+
+DataDruida es *open core*: abrimos lo que corre en tu placa y cobramos lo que
+hace falta para que un equipo funcione todos los días sin que lo mires.
+
+| Pieza | | |
+|---|---|---|
+| Runtime `dd`, catálogo, ejemplos (este repo) | **Abierto** · Apache-2.0 | Leelo, cambialo, llevalo a otra placa. |
+| API pública v1 y formatos de datos | **Abierto** · documentado | Cualquiera puede integrarse con DataDruida. |
+| Plano del tablero y guías de instalación | **Abierto** · público en la web | |
+| Firmware del DruidaBot 3.0 | **Cerrado** | Fail-safe, OTA, reloj, cola sin red, interlocks: probado en equipos en producción. |
+| Nube DataDruida (app, histórico, alertas, IA, compartir) | **Cerrado** · servicio | Incluida con el DruidaBot; para placas propias, con licencia (próximamente). |
+| Marcas "DataDruida" y "DruidaBot" | **Reservadas** | Ver [TRADEMARKS.md](TRADEMARKS.md). |
+
+El código que Claude genera para vos en la página es **tuyo**: hacé con él lo
+que quieras.
 
 ## Cómo funciona
 
@@ -110,7 +127,14 @@ Copia `runtime/`, `catalog/` y `examples/` a `public/developers/` del sitio.
 ## Contribuir
 
 Ver [CONTRIBUTING.md](CONTRIBUTING.md). Bugs y sensores nuevos: abrí un
-issue con la plantilla que corresponda.
+issue con la plantilla que corresponda. Para que podamos mergear un pull
+request hace falta aceptar el [acuerdo de contribución (CLA)](CLA.md).
+
+## Licencia
+
+Código: [Apache-2.0](LICENSE) (ver también [NOTICE](NOTICE)). Hasta el
+12-nov-2026 el repo estaba bajo MIT; lo publicado antes de esa fecha se puede
+seguir usando bajo MIT. Marcas: [TRADEMARKS.md](TRADEMARKS.md).
 
 ## Niveles de soporte
 

@@ -1,5 +1,5 @@
 # dd/sensors.py — drivers de sensores RS485 Modbus
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 #
 # Cada sensor tiene read() -> dict con sus magnitudes, o None si no contestó
 # o la lectura es inválida. Nunca lanza excepción: un sensor caído no tiene

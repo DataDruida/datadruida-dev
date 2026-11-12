@@ -1,5 +1,5 @@
 # dd/app.py — el bucle principal con las redes de seguridad puestas
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 #
 #   import dd
 #   def loop():

@@ -1,5 +1,5 @@
 # dd/inputs.py — entradas digitales DI1..DI8 (contacto seco contra DGND)
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 #
 # Contacto cerrado = True. Un flotante de tanque, un pulsador o un fin de
 # carrera se conectan entre DIx y DGND, sin fuente.

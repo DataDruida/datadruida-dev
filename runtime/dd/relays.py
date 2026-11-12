@@ -1,5 +1,5 @@
 # dd/relays.py — 8 relays por expansor I2C TCA9554, con seguridad incluida
-# Licencia MIT — DataDruida
+# Licencia Apache-2.0 — DataDruida
 #
 # Reglas de seguridad (aprendidas en campo):
 #  - Al iniciar se escribe el LATCH (todo apagado) ANTES de pasar los pines a
