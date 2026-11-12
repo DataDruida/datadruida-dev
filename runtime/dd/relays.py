@@ -1,10 +1,13 @@
-# dd/relays.py — 8 relays por expansor I2C TCA9554, con seguridad incluida
+# dd/relays.py — relays de la placa, con seguridad incluida
+#   - por expansor I2C TCA9554 (ETH-8DI-8RO, 8 relays)
+#   - por GPIO directo (Relay-6CH, Relay-1CH)
 # Licencia Apache-2.0 — DataDruida
 #
 # Reglas de seguridad (aprendidas en campo):
 #  - Al iniciar se escribe el LATCH (todo apagado) ANTES de pasar los pines a
 #    salida. Al revés, después de un corte de luz los 8 relays prenden un
-#    instante (el latch de fábrica es 0xFF).
+#    instante (el latch de fábrica es 0xFF). Con GPIO directo, lo mismo: el
+#    pin se crea ya en 0 (Pin(g, OUT, value=0)).
 #  - Un pico de tensión puede resetear el TCA9554: vuelve a CONFIG=0xFF (todo
 #    entrada) y los relays quedan sin drive aunque el programa crea que están
 #    prendidos. heal() lo detecta y re-asienta el estado. dd.run() lo llama
@@ -22,15 +25,23 @@ REG_CONFIG = 0x03
 
 
 class Relays:
-    def __init__(self, i2c=None, addr=0x20, count=8):
-        if i2c is None:
+    def __init__(self, i2c=None, addr=0x20, count=8, pins=None):
+        if i2c is None and pins is None:
             from dd import board
-            i2c = board.i2c()
             cfg = board.current()["relays"]
-            addr = cfg["addr"]
-            count = cfg["count"]
+            if cfg.get("driver") == "gpio":
+                pins = cfg["pins"]
+            else:
+                i2c = board.i2c()
+                addr = cfg["addr"]
+                count = cfg["count"]
         self.i2c = i2c
         self.addr = addr
+        self._pins = None
+        if pins is not None:
+            from machine import Pin
+            self._pins = [Pin(g, Pin.OUT, value=0) for g in pins]
+            count = len(pins)
         self.count = count
         self._mask = 0
         self._on_since = [None] * (count + 1)
@@ -46,7 +57,17 @@ class Relays:
     def _r(self, reg):
         return self.i2c.readfrom_mem(self.addr, reg, 1)[0]
 
+    def _out(self, mask):
+        if self._pins is not None:
+            for i, p in enumerate(self._pins):
+                p.value(1 if mask & (1 << i) else 0)
+        else:
+            self._w(REG_OUTPUT, mask)
+
     def _init_chip(self):
+        if self._pins is not None:
+            self._out(self._mask)
+            return
         self._w(REG_OUTPUT, self._mask)  # 1) latch primero
         self._w(REG_POL, 0x00)
         self._w(REG_CONFIG, 0x00)        # 2) recién ahora, pines como salida
@@ -57,7 +78,7 @@ class Relays:
             raise ValueError("relay %d no existe (1..%d)" % (n, self.count))
 
     def set(self, n, on):
-        """Prende (True) o apaga (False) el relay n (1..8)."""
+        """Prende (True) o apaga (False) el relay n (1..count)."""
         self._check(n)
         if on and self.locked[n]:
             return False
@@ -65,7 +86,7 @@ class Relays:
         new = (self._mask | bit) if on else (self._mask & ~bit)
         if new != self._mask:
             self._mask = new
-            self._w(REG_OUTPUT, self._mask)
+            self._out(self._mask)
             self._on_since[n] = time.ticks_ms() if on else None
         return True
 
@@ -82,7 +103,7 @@ class Relays:
     def all_off(self):
         self._mask = 0
         try:
-            self._w(REG_OUTPUT, 0)
+            self._out(0)
         except OSError:
             pass
         self._on_since = [None] * (self.count + 1)
@@ -108,6 +129,9 @@ class Relays:
     # --- tareas periódicas (las llama dd.run) ---
     def heal(self):
         """Re-asienta el chip si se reseteó por un pico de tensión."""
+        if self._pins is not None:
+            self._out(self._mask)   # GPIO: re-afirma el estado, no hay chip que resetear
+            return False
         try:
             cfg = self._r(REG_CONFIG)
         except OSError:

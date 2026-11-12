@@ -32,6 +32,7 @@ time.ticks_ms = ticks_ms
 time.ticks_diff = ticks_diff
 time.ticks_add = ticks_add
 time.sleep_ms = sleep_ms
+time.sleep_us = lambda us: None
 sys.print_exception = lambda e: print("EXC", repr(e))
 
 
@@ -89,6 +90,9 @@ class UART:
     def any(self):
         return len(self.rx)
 
+    def flush(self):
+        pass
+
     def read(self, n=None):
         n = len(self.rx) if n is None else n
         out, self.rx = self.rx[:n], self.rx[n:]
@@ -127,13 +131,26 @@ class UART:
 
 class Pin:
     IN, OUT, PULL_UP = 1, 2, 3
-    levels = {}
+    levels = {}      # entradas simuladas
+    out = {}         # salidas: gpio -> nivel
+    log = []         # (gpio, nivel) en orden
 
-    def __init__(self, g, *a, **k):
+    def __init__(self, g, mode=None, pull=None, value=None):
         self.g = g
+        self.mode = mode
+        if mode == Pin.OUT:
+            # como en MicroPython: el nivel se fija ANTES de pasar a salida
+            lvl = 0 if value is None else value
+            Pin.out[g] = lvl
+            Pin.log.append((g, lvl))
 
-    def value(self):
-        return Pin.levels.get(self.g, 1)
+    def value(self, v=None):
+        if v is None:
+            if self.mode == Pin.OUT:
+                return Pin.out.get(self.g, 0)
+            return Pin.levels.get(self.g, 1)
+        Pin.out[self.g] = 1 if v else 0
+        Pin.log.append((self.g, Pin.out[self.g]))
 
 
 class Timer:
@@ -176,6 +193,9 @@ def fresh():
     # se busca en sys.modules
     import dd  # noqa: F401
     sys.modules["dd.board"]._i2c = None
+    sys.modules["dd.board"]._current = None
+    Pin.out.clear()
+    del Pin.log[:]
     sys.modules["dd.relays"]._relays = None
     sys.modules["dd.modbus"]._bus = None
     _now[0] = 0

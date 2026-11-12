@@ -21,14 +21,18 @@ def _tobcd(v):
 
 def _rtc_addr():
     from dd import board
-    return board.current().get("rtc", {}).get("addr", 0x51)
+    rtc = board.current().get("rtc")
+    return rtc.get("addr", 0x51) if rtc else None
 
 
 def read_rtc():
     """(año, mes, día, hora, min, seg) del PCF85063, o None si no es creíble."""
     from dd import board
+    addr = _rtc_addr()
+    if addr is None or board.i2c() is None:
+        return None            # placa sin reloj propio: la hora sale de NTP
     try:
-        r = board.i2c().readfrom_mem(_rtc_addr(), 0x04, 7)
+        r = board.i2c().readfrom_mem(addr, 0x04, 7)
     except OSError:
         return None
     if r[0] & 0x80:        # bit OS: el oscilador se detuvo, hora no confiable
@@ -42,9 +46,12 @@ def read_rtc():
 
 def write_rtc(t):
     from dd import board
+    addr = _rtc_addr()
+    if addr is None or board.i2c() is None:
+        return
     y, mo, d, h, m, s = t[:6]
     buf = bytes([_tobcd(s), _tobcd(m), _tobcd(h), _tobcd(d), 0, _tobcd(mo), _tobcd(y - 2000)])
-    board.i2c().writeto_mem(_rtc_addr(), 0x04, buf)
+    board.i2c().writeto_mem(addr, 0x04, buf)
 
 
 def _set_system(t):

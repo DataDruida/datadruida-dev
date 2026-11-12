@@ -36,8 +36,13 @@ class ModbusError(Exception):
 
 
 class Bus:
-    def __init__(self, uart_id=1, tx=17, rx=18, baud=4800, timeout_ms=300, uart=None):
+    def __init__(self, uart_id=1, tx=17, rx=18, baud=4800, timeout_ms=300, uart=None, de=None):
         self.baud = baud
+        # GPIO de habilitación del transmisor (placas sin dirección automática)
+        self._de = None
+        if de is not None:
+            from machine import Pin
+            self._de = Pin(de, Pin.OUT, value=0)
         self.timeout_ms = timeout_ms
         if uart is not None:
             self.uart = uart
@@ -46,7 +51,20 @@ class Bus:
                              tx=tx, rx=rx, timeout=20)
         # silencio mínimo entre tramas (3,5 caracteres); a 4800 ~8 ms
         self._gap_ms = max(2, int(3.5 * 11 * 1000 / baud) + 1)
+        self._char_us = int(11 * 1000000 / baud) + 1
         self._last = 0
+
+    def _send(self, req):
+        if self._de is None:
+            self.uart.write(req)
+            return
+        self._de.value(1)
+        self.uart.write(req)
+        try:
+            self.uart.flush()                  # espera que salga el último byte
+        except AttributeError:
+            time.sleep_us(len(req) * self._char_us)
+        self._de.value(0)
 
     def _drain(self):
         while self.uart.any():
@@ -57,7 +75,7 @@ class Bus:
         if wait > 0:
             time.sleep_ms(wait)
         self._drain()
-        self.uart.write(req)
+        self._send(req)
         t0 = time.ticks_ms()
         to = timeout_ms or self.timeout_ms
         buf = b""
@@ -106,7 +124,7 @@ class Bus:
         req = _frame(addr, 6, reg, value & 0xFFFF)
         if addr == 0:
             self._drain()
-            self.uart.write(req)
+            self._send(req)
             self._last = time.ticks_ms()
             return True
         resp = self._xfer(req, 8, timeout_ms)
@@ -134,7 +152,7 @@ def bus(**kw):
         from dd import board
         cfg = board.current().get("rs485", {})
         args = dict(uart_id=cfg.get("uart", 1), tx=cfg.get("tx", 17), rx=cfg.get("rx", 18),
-                    baud=cfg.get("baud", 4800))
+                    baud=cfg.get("baud", 4800), de=cfg.get("de"))
         args.update(kw)
         _bus = Bus(**args)
     return _bus

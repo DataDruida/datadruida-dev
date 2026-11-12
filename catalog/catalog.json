@@ -11,10 +11,48 @@
       "status": "verified",
       "mains": true,
       "io": {
+        "power": "7–36 V DC",
         "relays": 8,
         "digital_inputs": 8,
         "rs485": { "uart": 1, "tx": 17, "rx": 18, "baud": 4800 },
         "i2c": { "sda": 42, "scl": 41 },
+        "rtc": "PCF85063"
+      }
+    },
+    {
+      "id": "waveshare-esp32-s3-relay-6ch",
+      "brand": "Waveshare",
+      "name": "ESP32-S3-Relay-6CH",
+      "summary": "ESP32-S3 con 6 relays (10 A / 250 V, NA y NC), RS485 aislado, buzzer y LED RGB. Alimentación 7-36 V. Sin reloj propio: la hora sale de internet.",
+      "chip": "ESP32-S3",
+      "firmware": "micropython-esp32s3",
+      "status": "unverified",
+      "mains": true,
+      "io": {
+        "power": "7–36 V DC",
+        "relays": 6,
+        "digital_inputs": 0,
+        "rs485": { "uart": 1, "tx": 17, "rx": 18, "baud": 4800 },
+        "rtc": null,
+        "buzzer": 21,
+        "rgb": 38
+      }
+    },
+    {
+      "id": "waveshare-esp32-s3-relay-1ch",
+      "brand": "Waveshare",
+      "name": "ESP32-S3-Relay-1CH",
+      "summary": "ESP32-S3 con 1 relay (10 A / 250 V), RS485 aislado y reloj RTC. Alimentación 5 V. Para riel DIN.",
+      "chip": "ESP32-S3R8",
+      "firmware": "micropython-esp32s3",
+      "status": "unverified",
+      "mains": true,
+      "io": {
+        "power": "5 V DC",
+        "relays": 1,
+        "digital_inputs": 0,
+        "rs485": { "uart": 1, "tx": 17, "rx": 18, "de": 21, "baud": 4800 },
+        "i2c": { "sda": 39, "scl": 38 },
         "rtc": "PCF85063"
       }
     }
