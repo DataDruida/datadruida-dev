@@ -201,30 +201,37 @@ class RunTest(unittest.TestCase):
 
 
 class ExamplesTest(unittest.TestCase):
-    """Los 6 ejemplos compilan, corren un rato contra la placa simulada y
-    terminan con todo apagado al apretar Detener."""
+    """Los ejemplos compilan, corren un rato contra la placa simulada que dice
+    su encabezado ("# Placa: ...") y terminan con todo apagado al apretar Detener."""
 
     def _files(self):
         ex = os.path.join(HERE, "..", "examples")
         return ex, sorted(f for f in os.listdir(ex) if f.endswith(".py"))
 
-    def test_son_seis(self):
-        self.assertEqual(len(self._files()[1]), 6)
+    def test_son_siete(self):
+        self.assertEqual(len(self._files()[1]), 7)
 
     def test_corren(self):
         ex, files = self._files()
         for f in files:
             with self.subTest(ejemplo=f):
                 fakes.fresh()
+                with open(os.path.join(ex, f), encoding="utf-8") as fh:
+                    src = fh.read()
+                for bid, b in board.BOARDS.items():
+                    if "# Placa: " + b["name"] in src:
+                        board.select(bid)
                 u = modbus.bus().uart
                 u.slaves = {a: {"baud": 4800,
                                 "regs": {(fc, i): 500 for fc in (3, 4) for i in range(8)}}
                             for a in (1, 2, 3, 4, 45)}
-                with open(os.path.join(ex, f), encoding="utf-8") as fh:
-                    code = compile(fh.read(), f, "exec")
+                code = compile(src, f, "exec")
                 with SleepBudget(80):
                     exec(code, {"__name__": "__main__"})
-                self.assertEqual(board.i2c().tca.driven(), 0)
+                if board.current()["relays"].get("driver") == "tca9554":
+                    self.assertEqual(board.i2c().tca.driven(), 0)
+                else:
+                    self.assertFalse(any(dd.relays().state()))
 
 
 class PantallaTest(unittest.TestCase):
