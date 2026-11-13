@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "esp_heap_caps.h"
+#include "esp_lcd_panel_io.h"
 #include "esp_timer.h"
 #include "py/obj.h"
 #include "py/runtime.h"

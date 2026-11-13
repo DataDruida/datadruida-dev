@@ -3,6 +3,7 @@ name: firmware
 # Sólo cuando cambia firmware/ o a mano. El .bin queda como artefacto del run.
 on:
   push:
+    branches: [main]
     paths: ["firmware/**", ".github/workflows/firmware.yml"]
   pull_request:
     paths: ["firmware/**", ".github/workflows/firmware.yml"]
