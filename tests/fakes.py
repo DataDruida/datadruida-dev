@@ -294,6 +294,7 @@ def fresh():
     sys.modules["dd.relays"]._relays = None
     sys.modules["dd.modbus"]._bus = None
     sys.modules["dd.screen"]._screen = None
+    sys.modules["dd.ui"]._ui = None
     _now[0] = 0
 
 

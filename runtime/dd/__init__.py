@@ -11,7 +11,7 @@
 #       r.set(1, dd.in_window("08:00", "20:00"))
 #   dd.run(loop, every_s=5)
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 from dd.relays import relays            # noqa: E402,F401
 from dd.sensors import sensor           # noqa: E402,F401
@@ -20,4 +20,5 @@ from dd.control import Hysteresis, Cycle, average, vpd  # noqa: E402,F401
 from dd.app import run                  # noqa: E402,F401
 from dd import inputs                   # noqa: E402,F401
 from dd.extras import beep, led, battery  # noqa: E402,F401
+from dd.ui import ui                    # noqa: E402,F401
 from dd.screen import screen, rgb, BLACK, WHITE, RED, GREEN, BLUE, YELLOW, ORANGE, CYAN, GRAY, DARK  # noqa: E402,F401

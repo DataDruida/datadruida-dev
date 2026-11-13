@@ -12,6 +12,8 @@
 # rs485.external: la placa no trae RS485; va un módulo TTL-RS485 con dirección
 #   automática en esos pines.
 # screen: pantalla ST7789 por SPI (dd.screen); touch CST816 en el bus i2c.
+# ui: "lvgl" si la placa se maneja con dd.ui() (firmware DataDruida con
+#   pantalla: MicroPython + LVGL + ddhw). El panel y el touch los arma ddhw en C.
 
 BOARDS = {
     "waveshare-esp32-s3-eth-8di-8ro": {
@@ -60,6 +62,27 @@ BOARDS = {
                    "sck": 39, "mosi": 38, "cs": 45, "dc": 42, "bl": 1,
                    "invert": True, "touch": {"driver": "cst816", "addr": 0x15}},
         "battery": {"adc": 5, "ratio": 3.0},
+        "ui": "lvgl",
+    },
+    # Familia ESP32-S3-Touch-LCD con panel RGB. Panel, touch GT911 y expansor
+    # los maneja ddhw (firmware con pantalla); el I2C 8/9 queda tomado por él,
+    # por eso acá no hay "i2c" ni RTC (la hora sale de NTP). RS485 a bordo con
+    # dirección automática en RX 43 / TX 44 (por eso el REPL va sólo por USB).
+    "waveshare-esp32-s3-touch-lcd-7b": {
+        "name": "Waveshare ESP32-S3-Touch-LCD-7B",
+        "relays": {"driver": "gpio", "pins": []},
+        "rtc": None,
+        "rs485": {"uart": 1, "tx": 44, "rx": 43, "baud": 4800},
+        "inputs": [],
+        "ui": "lvgl",
+    },
+    "waveshare-esp32-s3-touch-lcd-800x480": {
+        "name": "Waveshare ESP32-S3-Touch-LCD 4,3 / 5 / 7 (800x480)",
+        "relays": {"driver": "gpio", "pins": []},
+        "rtc": None,
+        "rs485": {"uart": 1, "tx": 44, "rx": 43, "baud": 4800},
+        "inputs": [],
+        "ui": "lvgl",
     },
 }
 

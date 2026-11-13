@@ -1,0 +1,10 @@
+{
+  "deploy": ["../deploy.md"],
+  "docs": "",
+  "features": ["BLE", "WiFi", "PSRAM", "USB"],
+  "images": [],
+  "mcu": "esp32s3",
+  "product": "DataDruida ESP32-S3 LVGL",
+  "url": "https://app.datadruida.com.ar/developers",
+  "vendor": "DataDruida"
+}
