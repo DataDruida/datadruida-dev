@@ -34,7 +34,7 @@ grep -E '^#define LV_FONT_MONTSERRAT_(20|28|32|40|48) +1' "$LV_CONF" | wc -l | g
 make -C mpy-cross -j"$(nproc)"
 # Submódulos que usa el port esp32 (con BOARD_DIR externo `make submodules`
 # no descubre ninguno, así que van explícitos).
-git submodule update --init --depth 1 lib/berkeley-db-1.xx lib/micropython-lib
+git submodule update --init --depth 1 lib/berkeley-db-1.xx lib/tinyusb lib/micropython-lib
 
 make -C ports/esp32 -j"$(nproc)" \
     BOARD_DIR="$HERE/boards/DD_S3_LVGL" \
