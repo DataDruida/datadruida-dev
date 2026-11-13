@@ -55,6 +55,8 @@ en iPhone/iPad.
 | Waveshare ESP32-S3-Relay-6CH | 6 (GPIO) | — | No: hora por NTP | buzzer, LED RGB | 7–36 V DC | Sin probar |
 | Waveshare ESP32-S3-Relay-1CH | 1 (GPIO) | — | Sí | — | 5 V DC | Sin probar |
 | Waveshare ESP32-S3-Touch-LCD-2 | — | — | No: hora por NTP | pantalla táctil 2" 240×320, batería | 5 V USB-C o batería | Sin probar |
+| Waveshare ESP32-S3-Touch-LCD-7B | — | — | No: hora por NTP | pantalla táctil 7" 1024×600 (LVGL) | 7–36 V DC o USB-C | Sin probar |
+| Waveshare ESP32-S3-Touch-LCD-4.3 / 4.3B / 5 / 7 | — | — | No: hora por NTP | pantalla táctil 800×480 (LVGL) | 5 V USB-C (4.3B/5/7: 7–36 V) | Sin probar |
 
 La página guarda la placa elegida en `/dd_config.json` (`"board": "<id>"`) y el
 runtime arma relays, reloj y RS485 según ese modelo (`runtime/dd/board.py`). Sin
@@ -68,9 +70,7 @@ pin DE (GPIO 21) en cada envío.
 **Pantallas:** la Touch-LCD-2 (ST7789 por SPI) se maneja con `dd.screen()`:
 se dibuja en memoria con `framebuf` y `show()` lo manda entero, sin parpadeo. No
 trae RS485: los sensores van con un módulo TTL-RS485 de dirección automática en
-TX 17 / RX 18. Las placas con pantalla RGB grande (4,3" y 7") no se pueden
-dibujar con MicroPython oficial (hace falta un firmware con LVGL), así que por
-ahora no están en el catálogo.
+TX 17 / RX 18.
 
 ```python
 scr = dd.screen()                       # 240x320; landscape=True -> 320x240
@@ -78,6 +78,27 @@ scr.fill(dd.BLACK)
 scr.center("24.6 C", 100, dd.ORANGE, size=5)   # letra 8x8 agrandada, sólo ASCII
 scr.show()
 ```
+
+**Pantallas grandes con LVGL (4,3", 5", 7"):** usan el **firmware DataDruida con
+pantalla** (`firmware/`): MicroPython 1.24.1 + LVGL 9.3 + el módulo C `ddhw`
+(panel RGB, expansor CH422G / IO_EXTENSION, touch GT911/CST816). Es una sola
+imagen para todas las placas; el modelo se elige en `/dd_config.json`. La
+página lo instala sola en las placas que lo piden (campo `firmware` del
+catálogo). En el código se usa `dd.ui()`:
+
+```python
+ui = dd.ui()                            # arranca pantalla + touch; ui.width, ui.height
+lv = ui.lv                              # LVGL 9 completo
+t = ui.card("Temperatura", "°C")        # tarjetas en grilla, valor grande
+ui.button("Brillo", lambda: ui.brightness(30))
+def loop():
+    t.set(24.6)                         # en loop sólo se actualiza
+dd.run(loop, every_s=2)
+```
+
+LVGL corre solo cada 10 ms (Timer + `micropython.schedule`). Estas placas usan
+el RS485 en RX 43 / TX 44, así que no tienen consola por UART: la consola va
+por el USB nativo.
 
 ## Sensores (RS485 Modbus, todos a 4800 8N1)
 
@@ -128,6 +149,7 @@ dd.run(loop, every_s=5)
 | `dd.beep(ms, times)` | buzzer, si la placa tiene (si no, no hace nada) |
 | `dd.led(r, g, b)` | LED RGB, si la placa tiene; `dd.led(0)` lo apaga |
 | `dd.screen()` | pantalla: `fill`, `text(s, x, y, color, size)`, `center`, `rect`, `line`, `bar`, `show()`, `brightness()`, `touch()` |
+| `dd.ui()` | pantalla LVGL (placas con firmware con pantalla): `card`, `title`, `button`, `brightness`, `lv`, `scr` |
 | `dd.rgb(r, g, b)` | color para la pantalla (`dd.BLACK`, `dd.GREEN`, etc. ya hechos) |
 | `dd.battery()` | volts de la batería, si la placa mide |
 | `dd.run(loop, every_s)` | bucle con seguridad (ver abajo) |
@@ -149,15 +171,32 @@ dd.run(loop, every_s=5)
 
 ## Ejemplos
 
-`examples/01..07`: relay por horario, temperatura/humedad en vivo,
-termostato, riego por humedad de suelo, alarma de CO₂, monitor de solución y
-temperatura/humedad en la pantalla (Touch-LCD-2).
+`examples/01..08`: relay por horario, temperatura/humedad en vivo,
+termostato, riego por humedad de suelo, alarma de CO₂, monitor de solución,
+temperatura/humedad en la pantalla (Touch-LCD-2) y tablero táctil con LVGL
+(Touch-LCD-7B).
 
 ## Tests (en la PC, con placa simulada)
 
 ```bash
 python tests/test_runtime.py
 ```
+
+## Firmware con pantalla (LVGL)
+
+Lo compila GitHub Actions (`.github/workflows/firmware.yml`, contenedor
+`espressif/idf:v5.2.2`) cada vez que cambia `firmware/`; el `.bin` queda como
+artefacto `dd-lvgl-esp32s3` del run. Para compilarlo a mano, con ESP-IDF 5.2.2
+cargado:
+
+```bash
+./firmware/build.sh
+```
+
+Deja `firmware/dist/dd-lvgl-esp32s3.bin` (imagen completa desde 0x0). En la web
+va como `public/firmware/dd-lvgl-esp32s3/micropython.bin`. Para sumar una
+pantalla: perfil en `firmware/modules/ddhw/boards.c` + entrada en `board.py`
+(`"ui": "lvgl"`) + catálogo con `"firmware": "dd-lvgl-esp32s3"`.
 
 ## Publicar en la web
 

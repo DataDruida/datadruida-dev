@@ -74,6 +74,42 @@
         "screen": { "driver": "st7789", "width": 240, "height": 320, "touch": "CST816D" },
         "battery": true
       }
+    },
+    {
+      "id": "waveshare-esp32-s3-touch-lcd-7b",
+      "brand": "Waveshare",
+      "name": "ESP32-S3-Touch-LCD-7B",
+      "summary": "ESP32-S3 con pantalla táctil de 7\" (1024 x 600), RS485 y CAN. Sin relays. Usa el firmware DataDruida con pantalla (LVGL). Sin reloj propio: la hora sale de internet.",
+      "chip": "ESP32-S3 (16 MB flash, 8 MB PSRAM)",
+      "firmware": "dd-lvgl-esp32s3",
+      "status": "unverified",
+      "mains": false,
+      "io": {
+        "power": "7–36 V DC o 5 V USB-C",
+        "relays": 0,
+        "digital_inputs": 0,
+        "rs485": { "uart": 1, "tx": 44, "rx": 43, "baud": 4800 },
+        "rtc": null,
+        "screen": { "driver": "lvgl", "width": 1024, "height": 600, "touch": "GT911" }
+      }
+    },
+    {
+      "id": "waveshare-esp32-s3-touch-lcd-800x480",
+      "brand": "Waveshare",
+      "name": "ESP32-S3-Touch-LCD 4,3 / 5 / 7 (800x480)",
+      "summary": "ESP32-S3 con pantalla táctil de 4,3\", 5\" o 7\" (800 x 480), RS485 y CAN. Sin relays. Usa el firmware DataDruida con pantalla (LVGL). Sin reloj propio: la hora sale de internet.",
+      "chip": "ESP32-S3 (16 MB flash, 8 MB PSRAM)",
+      "firmware": "dd-lvgl-esp32s3",
+      "status": "unverified",
+      "mains": false,
+      "io": {
+        "power": "7–36 V DC o 5 V USB-C",
+        "relays": 0,
+        "digital_inputs": 0,
+        "rs485": { "uart": 1, "tx": 44, "rx": 43, "baud": 4800 },
+        "rtc": null,
+        "screen": { "driver": "lvgl", "width": 800, "height": 480, "touch": "GT911" }
+      }
     }
   ],
   "sensors": [

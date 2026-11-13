@@ -208,8 +208,8 @@ class ExamplesTest(unittest.TestCase):
         ex = os.path.join(HERE, "..", "examples")
         return ex, sorted(f for f in os.listdir(ex) if f.endswith(".py"))
 
-    def test_son_siete(self):
-        self.assertEqual(len(self._files()[1]), 7)
+    def test_son_ocho(self):
+        self.assertEqual(len(self._files()[1]), 8)
 
     def test_corren(self):
         ex, files = self._files()
@@ -221,6 +221,10 @@ class ExamplesTest(unittest.TestCase):
                 for bid, b in board.BOARDS.items():
                     if "# Placa: " + b["name"] in src:
                         board.select(bid)
+                if board.current().get("ui") == "lvgl" and "dd.ui()" in src:
+                    # en la PC no hay LVGL: sólo se comprueba que compile
+                    compile(src, f, "exec")
+                    continue
                 u = modbus.bus().uart
                 u.slaves = {a: {"baud": 4800,
                                 "regs": {(fc, i): 500 for fc in (3, 4) for i in range(8)}}
@@ -301,6 +305,30 @@ class PantallaTest(unittest.TestCase):
         with SleepBudget(30):
             dd.run(lambda: vistos.append(1), every_s=1, wifi=False)
         self.assertTrue(vistos)
+
+
+class PantallaLvglTest(unittest.TestCase):
+    """dd.ui(): placas con firmware LVGL. En la PC no hay lvgl: error claro."""
+
+    def setUp(self):
+        fakes.fresh()
+
+    def test_sin_firmware_lvgl_avisa(self):
+        for bid in ("waveshare-esp32-s3-touch-lcd-7b", "waveshare-esp32-s3-touch-lcd-800x480"):
+            board.select(bid)
+            with self.assertRaises(RuntimeError) as e:
+                dd.ui()
+            self.assertIn("firmware DataDruida con pantalla", str(e.exception))
+
+    def test_placa_sin_pantalla(self):
+        board.select("waveshare-esp32-s3-relay-6ch")
+        with self.assertRaises(ValueError):
+            dd.ui()
+
+    def test_rs485_en_43_44_y_sin_relays(self):
+        board.select("waveshare-esp32-s3-touch-lcd-7b")
+        self.assertEqual(board.current()["rs485"]["tx"], 44)
+        self.assertEqual(dd.relays().count, 0)
 
 
 class OtrasPlacasTest(unittest.TestCase):
