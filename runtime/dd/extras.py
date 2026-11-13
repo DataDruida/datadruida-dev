@@ -48,3 +48,19 @@ def led(r, g=None, b=None):
         _np = neopixel.NeoPixel(Pin(pin), 1)
     _np[0] = (int(r) & 255, int(g) & 255, int(b) & 255)
     _np.write()
+
+
+def battery():
+    """Tensión de la batería en volts, o None si la placa no mide batería."""
+    from dd import board
+    c = board.current().get("battery")
+    if not c:
+        return None
+    try:
+        from machine import ADC, Pin
+        a = ADC(Pin(c["adc"]))
+        a.atten(ADC.ATTN_11DB)
+        uv = sum(a.read_uv() for _ in range(8)) / 8
+        return round(uv * c["ratio"] / 1e6, 2)
+    except Exception:
+        return None

@@ -54,6 +54,7 @@ en iPhone/iPad.
 | Waveshare ESP32-S3-ETH-8DI-8RO | 8 (chip TCA9554) | 8 DI | Sí | Ethernet | 7–36 V DC | Probado por DataDruida |
 | Waveshare ESP32-S3-Relay-6CH | 6 (GPIO) | — | No: hora por NTP | buzzer, LED RGB | 7–36 V DC | Sin probar |
 | Waveshare ESP32-S3-Relay-1CH | 1 (GPIO) | — | Sí | — | 5 V DC | Sin probar |
+| Waveshare ESP32-S3-Touch-LCD-2 | — | — | No: hora por NTP | pantalla táctil 2" 240×320, batería | 5 V USB-C o batería | Sin probar |
 
 La página guarda la placa elegida en `/dd_config.json` (`"board": "<id>"`) y el
 runtime arma relays, reloj y RS485 según ese modelo (`runtime/dd/board.py`). Sin
@@ -64,9 +65,19 @@ Sin RTC (6CH), la hora sale sólo de internet: sin WiFi los horarios quedan
 apagados. En la 1CH el RS485 no cambia de dirección solo: el runtime maneja el
 pin DE (GPIO 21) en cada envío.
 
-**Pantallas:** las placas con pantalla RGB grande (4,3" y 7") no se pueden
-dibujar con MicroPython oficial (hace falta un firmware con LVGL). Por ahora no
-están en el catálogo.
+**Pantallas:** la Touch-LCD-2 (ST7789 por SPI) se maneja con `dd.screen()`:
+se dibuja en memoria con `framebuf` y `show()` lo manda entero, sin parpadeo. No
+trae RS485: los sensores van con un módulo TTL-RS485 de dirección automática en
+TX 17 / RX 18. Las placas con pantalla RGB grande (4,3" y 7") no se pueden
+dibujar con MicroPython oficial (hace falta un firmware con LVGL), así que por
+ahora no están en el catálogo.
+
+```python
+scr = dd.screen()                       # 240x320; landscape=True -> 320x240
+scr.fill(dd.BLACK)
+scr.center("24.6 C", 100, dd.ORANGE, size=5)   # letra 8x8 agrandada, sólo ASCII
+scr.show()
+```
 
 ## Sensores (RS485 Modbus, todos a 4800 8N1)
 
@@ -116,6 +127,9 @@ dd.run(loop, every_s=5)
 | `dd.inputs.closed(n)` | entrada digital DIn cerrada (sólo placas con entradas) |
 | `dd.beep(ms, times)` | buzzer, si la placa tiene (si no, no hace nada) |
 | `dd.led(r, g, b)` | LED RGB, si la placa tiene; `dd.led(0)` lo apaga |
+| `dd.screen()` | pantalla: `fill`, `text(s, x, y, color, size)`, `center`, `rect`, `line`, `bar`, `show()`, `brightness()`, `touch()` |
+| `dd.rgb(r, g, b)` | color para la pantalla (`dd.BLACK`, `dd.GREEN`, etc. ya hechos) |
+| `dd.battery()` | volts de la batería, si la placa mide |
 | `dd.run(loop, every_s)` | bucle con seguridad (ver abajo) |
 
 ### Seguridad incluida
@@ -135,8 +149,9 @@ dd.run(loop, every_s=5)
 
 ## Ejemplos
 
-`examples/01..06`: relay por horario, temperatura/humedad en vivo,
-termostato, riego por humedad de suelo, alarma de CO₂, monitor de solución.
+`examples/01..07`: relay por horario, temperatura/humedad en vivo,
+termostato, riego por humedad de suelo, alarma de CO₂, monitor de solución y
+temperatura/humedad en la pantalla (Touch-LCD-2).
 
 ## Tests (en la PC, con placa simulada)
 

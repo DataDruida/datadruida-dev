@@ -9,6 +9,9 @@
 #   "gpio"    → un GPIO por relay (pins), activo en alto
 # rtc: None si la placa no tiene reloj propio (la hora sale sólo de NTP).
 # rs485.de: GPIO de habilitación del transmisor, si la placa no lo maneja sola.
+# rs485.external: la placa no trae RS485; va un módulo TTL-RS485 con dirección
+#   automática en esos pines.
+# screen: pantalla ST7789 por SPI (dd.screen); touch CST816 en el bus i2c.
 
 BOARDS = {
     "waveshare-esp32-s3-eth-8di-8ro": {
@@ -41,6 +44,22 @@ BOARDS = {
         "rtc": {"driver": "pcf85063", "addr": 0x51},
         "rs485": {"uart": 1, "tx": 17, "rx": 18, "baud": 4800, "de": 21},
         "inputs": [],
+    },
+    # Probado en DruidaVision2 (misma placa): LCD 2" ST7789 240x320 por SPI
+    # SCLK 39 / MOSI 38 / CS 45 / DC 42 / BL 1, invertida; touch CST816D 0x15
+    # en SDA 48 / SCL 47. Batería por divisor 1/3 en GPIO5. Sin relays, sin RTC
+    # y sin RS485 propio: 17/18 quedan libres para un módulo externo.
+    "waveshare-esp32-s3-touch-lcd-2": {
+        "name": "Waveshare ESP32-S3-Touch-LCD-2",
+        "i2c": {"id": 0, "sda": 48, "scl": 47, "freq": 400000},
+        "relays": {"driver": "gpio", "pins": []},
+        "rtc": None,
+        "rs485": {"uart": 1, "tx": 17, "rx": 18, "baud": 4800, "external": True},
+        "inputs": [],
+        "screen": {"driver": "st7789", "width": 240, "height": 320, "spi": 2,
+                   "sck": 39, "mosi": 38, "cs": 45, "dc": 42, "bl": 1,
+                   "invert": True, "touch": {"driver": "cst816", "addr": 0x15}},
+        "battery": {"adc": 5, "ratio": 3.0},
     },
 }
 

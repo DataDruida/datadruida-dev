@@ -55,6 +55,25 @@
         "i2c": { "sda": 39, "scl": 38 },
         "rtc": "PCF85063"
       }
+    },
+    {
+      "id": "waveshare-esp32-s3-touch-lcd-2",
+      "brand": "Waveshare",
+      "name": "ESP32-S3-Touch-LCD-2",
+      "summary": "ESP32-S3 con pantalla táctil de 2\" (240 x 320) y batería. Sin relays ni RS485 propio: los sensores van con un módulo TTL-RS485 en TX 17 / RX 18. Sin reloj propio: la hora sale de internet.",
+      "chip": "ESP32-S3R8",
+      "firmware": "micropython-esp32s3",
+      "status": "unverified",
+      "mains": false,
+      "io": {
+        "power": "5 V USB-C o batería 3,7 V",
+        "relays": 0,
+        "digital_inputs": 0,
+        "rs485": { "uart": 1, "tx": 17, "rx": 18, "baud": 4800, "external": true },
+        "rtc": null,
+        "screen": { "driver": "st7789", "width": 240, "height": 320, "touch": "CST816D" },
+        "battery": true
+      }
     }
   ],
   "sensors": [
