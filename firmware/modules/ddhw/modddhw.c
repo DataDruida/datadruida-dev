@@ -16,7 +16,7 @@
 #include "esp_timer.h"
 #include "py/obj.h"
 #include "py/runtime.h"
-#include "lvgl.h"
+#include "lvgl/lvgl.h"
 #include "ddhw.h"
 
 static const dd_board_t *s_board = NULL;
