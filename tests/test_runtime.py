@@ -201,30 +201,106 @@ class RunTest(unittest.TestCase):
 
 
 class ExamplesTest(unittest.TestCase):
-    """Los 6 ejemplos compilan, corren un rato contra la placa simulada y
-    terminan con todo apagado al apretar Detener."""
+    """Los ejemplos compilan, corren un rato contra la placa simulada que dice
+    su encabezado ("# Placa: ...") y terminan con todo apagado al apretar Detener."""
 
     def _files(self):
         ex = os.path.join(HERE, "..", "examples")
         return ex, sorted(f for f in os.listdir(ex) if f.endswith(".py"))
 
-    def test_son_seis(self):
-        self.assertEqual(len(self._files()[1]), 6)
+    def test_son_siete(self):
+        self.assertEqual(len(self._files()[1]), 7)
 
     def test_corren(self):
         ex, files = self._files()
         for f in files:
             with self.subTest(ejemplo=f):
                 fakes.fresh()
+                with open(os.path.join(ex, f), encoding="utf-8") as fh:
+                    src = fh.read()
+                for bid, b in board.BOARDS.items():
+                    if "# Placa: " + b["name"] in src:
+                        board.select(bid)
                 u = modbus.bus().uart
                 u.slaves = {a: {"baud": 4800,
                                 "regs": {(fc, i): 500 for fc in (3, 4) for i in range(8)}}
                             for a in (1, 2, 3, 4, 45)}
-                with open(os.path.join(ex, f), encoding="utf-8") as fh:
-                    code = compile(fh.read(), f, "exec")
+                code = compile(src, f, "exec")
                 with SleepBudget(80):
                     exec(code, {"__name__": "__main__"})
-                self.assertEqual(board.i2c().tca.driven(), 0)
+                if board.current()["relays"].get("driver") == "tca9554":
+                    self.assertEqual(board.i2c().tca.driven(), 0)
+                else:
+                    self.assertFalse(any(dd.relays().state()))
+
+
+class PantallaTest(unittest.TestCase):
+    """ESP32-S3-Touch-LCD-2: pantalla ST7789, touch CST816, batería, sin relays."""
+
+    def setUp(self):
+        fakes.fresh()
+        board.select("waveshare-esp32-s3-touch-lcd-2")
+
+    def test_sin_relays_error_claro(self):
+        r = dd.relays()
+        self.assertEqual(r.count, 0)
+        with self.assertRaises(ValueError) as e:
+            r.on(1)
+        self.assertIn("no tiene relays", str(e.exception))
+        r.all_off()                       # no explota
+
+    def test_init_y_show(self):
+        scr = dd.screen()
+        spi = fakes.SPI.last
+        self.assertEqual((scr.width, scr.height), (240, 320))
+        self.assertEqual(spi.commands()[:7], [0x01, 0x11, 0x3A, 0x36, 0x21, 0x13, 0x29])
+        self.assertEqual(fakes.PWM.last.duty, 65535)        # luz de fondo al 100 %
+        spi.sent.clear()
+        scr.fill(dd.RED)
+        scr.show()
+        self.assertEqual(spi.commands(), [0x2A, 0x2B, 0x2C])
+        data = [b for (dc, b) in spi.sent if dc == 1]
+        self.assertEqual(data[0], bytes([0, 0, 0, 239]))
+        self.assertEqual(data[1], bytes([0, 0, 1, 63]))
+        self.assertEqual(len(data[2]), 240 * 320 * 2)
+        # el panel recibe big-endian: rojo puro = F8 00
+        self.assertEqual(dd.rgb(255, 0, 0), 0x00F8)
+        scr.fill(dd.rgb(255, 0, 0))
+        self.assertEqual(scr._buf[0:2], bytes([0xF8, 0x00]))
+
+    def test_horizontal_y_texto_grande(self):
+        scr = dd.screen(landscape=True)
+        self.assertEqual((scr.width, scr.height), (320, 240))
+        sent = fakes.SPI.last.sent
+        i = sent.index((0, b"6"))
+        self.assertEqual(sent[i + 1], (1, b"`"))        # MADCTL horizontal
+        scr.fill(dd.BLACK)
+        self.assertEqual(scr.text_width("24.6", 4), 128)
+        scr.center("OK", 10, dd.GREEN, size=1)
+        self.assertEqual(scr.fb.pixel(152, 10), dd.GREEN)
+
+    def test_touch(self):
+        scr = dd.screen()
+        self.assertIsNone(scr.touch())
+        board.i2c().touch = (100, 200)
+        self.assertEqual(scr.touch(), (100, 200))
+        scr = dd.screen(landscape=True)
+        self.assertEqual(scr.touch(), (200, 239 - 100))
+
+    def test_bateria(self):
+        self.assertEqual(dd.battery(), 3.9)
+
+    def test_otra_placa_sin_pantalla(self):
+        board.select("waveshare-esp32-s3-eth-8di-8ro")
+        with self.assertRaises(ValueError):
+            dd.screen()
+        self.assertIsNone(dd.battery())
+
+    def test_run_en_la_lcd2(self):
+        vistos = []
+        with SleepBudget(30):
+            dd.run(lambda: vistos.append(1), every_s=1, wifi=False)
+        self.assertTrue(vistos)
 
 
 class OtrasPlacasTest(unittest.TestCase):

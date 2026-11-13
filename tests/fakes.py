@@ -54,6 +54,7 @@ class I2C:
     def __init__(self, *a, **k):
         self.tca = TCA9554()
         self.rtc = bytearray(7)
+        self.touch = None     # (x, y) mientras se toca la pantalla
         self.fail = False
 
     def writeto_mem(self, addr, reg, buf):
@@ -72,6 +73,11 @@ class I2C:
             return bytes([self.tca.regs[reg]])
         if addr == 0x51:
             return bytes(self.rtc[reg - 4:reg - 4 + n])
+        if addr == 0x15:      # touch CST816: [dedos, xH, xL, yH, yL]
+            if self.touch is None:
+                return bytes([0, 0, 0, 0, 0])
+            x, y = self.touch
+            return bytes([1, x >> 8, x & 0xFF, y >> 8, y & 0xFF])
         raise OSError(19)
 
 
@@ -173,14 +179,103 @@ class RTC:
         RTC.dt = t
 
 
+class SPI:
+    """Registra lo que se manda: [(dc, bytes)] (dc = nivel del pin DC)."""
+    last = None
+
+    def __init__(self, *a, **k):
+        self.sent = []
+        self.dc_pin = None
+        SPI.last = self
+
+    def write(self, b):
+        self.sent.append((Pin.out.get(42, None), bytes(b)))
+
+    def commands(self):
+        return [b[0] for (dc, b) in self.sent if dc == 0]
+
+
+class PWM:
+    last = None
+
+    def __init__(self, pin, freq=0):
+        self.duty = None
+        PWM.last = self
+
+    def duty_u16(self, d):
+        self.duty = d
+
+
+class ADC:
+    ATTN_11DB = 3
+    uv = 1300000          # 1,3 V en el pin
+
+    def __init__(self, pin):
+        pass
+
+    def atten(self, a):
+        pass
+
+    def read_uv(self):
+        return ADC.uv
+
+
 def _reset():
     raise SystemExit("reset")
 
 
 machine = types.ModuleType("machine")
 machine.I2C, machine.UART, machine.Pin, machine.Timer, machine.RTC = I2C, UART, Pin, Timer, RTC
+machine.SPI, machine.PWM, machine.ADC = SPI, PWM, ADC
 machine.reset = _reset
 sys.modules["machine"] = machine
+
+
+# ---- framebuf mínimo (sólo lo que usa dd.screen) ----
+class FrameBuffer:
+    def __init__(self, buf, w, h, fmt):
+        self.buf, self.w, self.h, self.fmt = buf, w, h, fmt
+        self.px = {}
+
+    def pixel(self, x, y, c=None):
+        if c is None:
+            return self.px.get((x, y), 0)
+        if 0 <= x < self.w and 0 <= y < self.h:
+            self.px[(x, y)] = c
+            if self.fmt == RGB565:
+                i = (y * self.w + x) * 2
+                self.buf[i], self.buf[i + 1] = c & 0xFF, c >> 8
+
+    def fill(self, c):
+        for y in range(self.h):
+            for x in range(self.w):
+                self.pixel(x, y, c)
+
+    def fill_rect(self, x, y, w, h, c):
+        for yy in range(y, y + h):
+            for xx in range(x, x + w):
+                self.pixel(xx, yy, c)
+
+    def rect(self, x, y, w, h, c):
+        self.fill_rect(x, y, w, 1, c)
+        self.fill_rect(x, y + h - 1, w, 1, c)
+        self.fill_rect(x, y, 1, h, c)
+        self.fill_rect(x + w - 1, y, 1, h, c)
+
+    def line(self, x1, y1, x2, y2, c):
+        self.pixel(x1, y1, c)
+        self.pixel(x2, y2, c)
+
+    def text(self, s, x, y, c):
+        # cada letra: un píxel en su esquina (alcanza para saber dónde quedó)
+        for i, _ in enumerate(s):
+            self.pixel(x + 8 * i, y, c)
+
+
+RGB565, MONO_HLSB = 1, 2
+framebuf = types.ModuleType("framebuf")
+framebuf.FrameBuffer, framebuf.RGB565, framebuf.MONO_HLSB = FrameBuffer, RGB565, MONO_HLSB
+sys.modules["framebuf"] = framebuf
 
 
 def s16(v):
@@ -198,6 +293,7 @@ def fresh():
     del Pin.log[:]
     sys.modules["dd.relays"]._relays = None
     sys.modules["dd.modbus"]._bus = None
+    sys.modules["dd.screen"]._screen = None
     _now[0] = 0
 
 

@@ -74,6 +74,8 @@ class Relays:
 
     # --- API ---
     def _check(self, n):
+        if not self.count:
+            raise ValueError("esta placa no tiene relays")
         if not 1 <= n <= self.count:
             raise ValueError("relay %d no existe (1..%d)" % (n, self.count))
 
