@@ -9,6 +9,9 @@
 #   scr.show()                            # recién acá se ve (manda todo de una vez)
 #   t = scr.touch()                       # (x, y) si están tocando, si no None
 #
+# Placas: ESP32-S3-Touch-LCD-2 (luz por GPIO, touch CST816) y ESP32-C5-Touch-LCD-2.8
+# (luz y resets por el coprocesador CH32V003, touch CST3530).
+#
 # Se dibuja en memoria (framebuf RGB565, 150 KB en la PSRAM) y show() lo manda
 # entero por SPI: así no parpadea. Los colores se arman con dd.rgb(r, g, b).
 #
@@ -52,6 +55,7 @@ class Screen:
         self._buf = bytearray(self.width * self.height * 2)
         self.fb = framebuf.FrameBuffer(self._buf, self.width, self.height, framebuf.RGB565)
         self._bl = None
+        self._exp_init()
         self._init_panel()
         self.brightness(100)
         self._tp = None
@@ -65,6 +69,31 @@ class Screen:
             self._dc.value(1)
             self._spi.write(data)
         self._cs.value(1)
+
+    # Coprocesador CH32V003 (I2C): registros 0x02 dirección (1 = salida), 0x03
+    # salidas, 0x05 PWM de la luz de fondo (0..255), 0x06 ADC (2 bytes, LSB primero).
+    def _exp(self, reg, val):
+        from dd import board
+        e = self.cfg["expander"]
+        for _ in range(3):              # tras un reset físico el CH32 puede tardar en contestar
+            try:
+                board.i2c().writeto(e["addr"], bytes([reg, val]))
+                return True
+            except OSError:
+                time.sleep_ms(20)
+        return False
+
+    def _exp_init(self):
+        e = self.cfg.get("expander")
+        if not e:
+            return
+        rst = (1 << e["touch_rst"]) | (1 << e["lcd_rst"])
+        self._exp(0x02, 0xFF)
+        self._exp(0x03, 0x00)           # resets abajo
+        time.sleep_ms(200)
+        self._exp(0x03, rst)
+        time.sleep_ms(200)
+        self._exp(0x03, rst | (1 << e["bl_power"]))   # alimentación de la luz (y del parlante)
 
     def _init_panel(self):
         self._cmd(0x01)                # reset por software
@@ -82,6 +111,10 @@ class Screen:
     # --- API ---
     def brightness(self, pct):
         """Brillo de la luz de fondo, 0..100."""
+        pct = max(0, min(100, int(pct)))
+        if self.cfg.get("expander"):
+            self._exp(0x05, pct * 255 // 100)
+            return
         bl = self.cfg.get("bl")
         if bl is None:
             return
@@ -161,18 +194,49 @@ class Screen:
         i2c = board.i2c()
         if i2c is None:
             return None
-        try:
-            d = i2c.readfrom_mem(t["addr"], 0x02, 5)
-        except OSError:
-            return None
-        if not d[0] & 0x0F:
-            return None
-        x = ((d[1] & 0x0F) << 8) | d[2]
-        y = ((d[3] & 0x0F) << 8) | d[4]
+        if t.get("driver") == "cst3530":
+            p = _cst3530(i2c, t["addr"])
+            if p is None:
+                return None
+            x, y = p
+        else:
+            try:
+                d = i2c.readfrom_mem(t["addr"], 0x02, 5)
+            except OSError:
+                return None
+            if not d[0] & 0x0F:
+                return None
+            x = ((d[1] & 0x0F) << 8) | d[2]
+            y = ((d[3] & 0x0F) << 8) | d[4]
         if self.landscape:
             # MADCTL 0x60: el eje largo pasa a ser x
             x, y = y, self.cfg["width"] - 1 - x
         return (x, y)
+
+
+def _cst3530(i2c, addr):
+    """Primer dedo del touch CST3530, o None. Comandos de 4 bytes; después de cada
+    lectura hay que mandar 'limpiar' o el chip deja de reportar."""
+    try:
+        i2c.writeto(addr, b"\xD0\x07\x00\x00", False)
+        b = i2c.readfrom(addr, 32)
+    except OSError:
+        return None
+    try:
+        if b[2] != 0xFF:
+            return None
+        n, keys = b[3] & 0x0F, b[3] >> 4
+        if not 1 <= n <= 5:
+            return None
+        k = keys * 5
+        if b[k + 8] >> 4 == 0:          # evento 0 = sin contacto
+            return None
+        return (b[k + 4] | (b[k + 7] & 0x0F) << 8, b[k + 5] | (b[k + 7] & 0xF0) << 4)
+    finally:
+        try:
+            i2c.writeto(addr, b"\xD0\x00\x02\xAB")
+        except OSError:
+            pass
 
 
 _screen = None

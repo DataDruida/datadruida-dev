@@ -307,6 +307,39 @@ class PantallaTest(unittest.TestCase):
         self.assertTrue(vistos)
 
 
+
+class PantallaC5Test(unittest.TestCase):
+    """ESP32-C5-Touch-LCD-2.8: luz y resets por el CH32V003, touch CST3530, RTC, batería por el CH32."""
+
+    def setUp(self):
+        fakes.fresh()
+        board.select("waveshare-esp32-c5-touch-lcd-2-8")
+
+    def test_init_por_el_ch32(self):
+        scr = dd.screen()
+        self.assertEqual((scr.width, scr.height), (240, 320))
+        ch = board.i2c().ch32
+        # dirección, resets abajo, resets arriba, luz encendida, brillo al 100 %
+        self.assertEqual(ch[:4], [(0x02, 0xFF), (0x03, 0x00), (0x03, 0x03), (0x03, 0x0B)])
+        self.assertEqual(ch[-1], (0x05, 255))
+        self.assertEqual(fakes.SPI.last.commands()[:7], [0x01, 0x11, 0x3A, 0x36, 0x21, 0x13, 0x29])
+        scr.brightness(40)
+        self.assertEqual(board.i2c().ch32[-1], (0x05, 102))
+
+    def test_touch_cst3530(self):
+        scr = dd.screen()
+        self.assertIsNone(scr.touch())
+        board.i2c().touch = (120, 300)
+        self.assertEqual(scr.touch(), (120, 300))
+        self.assertEqual(board.i2c().cst3530[-1], b"\xD0\x00\x02\xAB")   # limpia después de leer
+
+    def test_bateria_y_rtc(self):
+        self.assertEqual(dd.battery(), 4.25)
+        self.assertEqual(board.current()["rtc"]["addr"], 0x51)
+
+    def test_sin_relays(self):
+        self.assertEqual(dd.relays().count, 0)
+
 class PantallaLvglTest(unittest.TestCase):
     """dd.ui(): placas con firmware LVGL. En la PC no hay lvgl: error claro."""
 

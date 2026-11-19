@@ -55,6 +55,7 @@ en iPhone/iPad.
 | Waveshare ESP32-S3-Relay-6CH | 6 (GPIO) | — | No: hora por NTP | buzzer, LED RGB | 7–36 V DC | Sin probar |
 | Waveshare ESP32-S3-Relay-1CH | 1 (GPIO) | — | Sí | — | 5 V DC | Sin probar |
 | Waveshare ESP32-S3-Touch-LCD-2 | — | — | No: hora por NTP | pantalla táctil 2" 240×320, batería | 5 V USB-C o batería | Sin probar |
+| Waveshare ESP32-C5-Touch-LCD-2.8 | — | — | Sí | pantalla táctil 2,8" 240×320, WiFi 6 a 5 GHz, parlante, micrófono, batería | 5 V USB-C o batería | Sin probar |
 | Waveshare ESP32-S3-Touch-LCD-7B | — | — | No: hora por NTP | pantalla táctil 7" 1024×600 (LVGL) | 7–36 V DC o USB-C | Sin probar |
 | Waveshare ESP32-S3-Touch-LCD-4.3 / 4.3B / 5 / 7 | — | — | No: hora por NTP | pantalla táctil 800×480 (LVGL) | 5 V USB-C (4.3B/5/7: 7–36 V) | Sin probar |
 
@@ -67,10 +68,12 @@ Sin RTC (6CH), la hora sale sólo de internet: sin WiFi los horarios quedan
 apagados. En la 1CH el RS485 no cambia de dirección solo: el runtime maneja el
 pin DE (GPIO 21) en cada envío.
 
-**Pantallas:** la Touch-LCD-2 (ST7789 por SPI) se maneja con `dd.screen()`:
+**Pantallas:** la Touch-LCD-2 y la C5-Touch-LCD-2.8 (ST7789 por SPI) se manejan con `dd.screen()`:
 se dibuja en memoria con `framebuf` y `show()` lo manda entero, sin parpadeo. No
 trae RS485: los sensores van con un módulo TTL-RS485 de dirección automática en
-TX 17 / RX 18.
+TX 17 / RX 18. En la C5-Touch-LCD-2.8 la luz de fondo y los resets van por
+un coprocesador CH32V003 en I2C (el runtime lo maneja solo), el módulo RS485 va en TX 2 / RX 3,
+y usa MicroPython oficial para ESP32-C5 (la C5 tiene un solo núcleo).
 
 ```python
 scr = dd.screen()                       # 240x320; landscape=True -> 320x240

@@ -11,7 +11,7 @@
 #       r.set(1, dd.in_window("08:00", "20:00"))
 #   dd.run(loop, every_s=5)
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 from dd.relays import relays            # noqa: E402,F401
 from dd.sensors import sensor           # noqa: E402,F401

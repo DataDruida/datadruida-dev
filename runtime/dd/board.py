@@ -11,7 +11,9 @@
 # rs485.de: GPIO de habilitación del transmisor, si la placa no lo maneja sola.
 # rs485.external: la placa no trae RS485; va un módulo TTL-RS485 con dirección
 #   automática en esos pines.
-# screen: pantalla ST7789 por SPI (dd.screen); touch CST816 en el bus i2c.
+# screen: pantalla ST7789 por SPI (dd.screen); touch CST816 o CST3530 en el bus
+#   i2c. screen.expander: la luz de fondo y los resets van por un coprocesador
+#   CH32V003 en I2C (ESP32-C5-Touch-LCD-2.8), no por GPIO.
 # ui: "lvgl" si la placa se maneja con dd.ui() (firmware DataDruida con
 #   pantalla: MicroPython + LVGL + ddhw). El panel y el touch los arma ddhw en C.
 
@@ -63,6 +65,27 @@ BOARDS = {
                    "invert": True, "touch": {"driver": "cst816", "addr": 0x15}},
         "battery": {"adc": 5, "ratio": 3.0},
         "ui": "lvgl",
+    },
+    # ESP32-C5-Touch-LCD-2.8 (la del DruidaVision3). MicroPython oficial para C5.
+    # Un solo bus I2C (SDA 0 / SCL 1): coprocesador CH32V003 0x24 (resets de LCD
+    # y touch, luz de fondo por PWM y ADC de batería), RTC PCF85063 0x51, touch
+    # CST3530 0x58, SHTC3 0x70, IMU 0x6B, códec de audio 0x18. LCD ST7789V2 por
+    # SPI (1 = SPI2 del C5) sin pin de backlight: lo maneja el CH32. Sin relays y
+    # sin RS485 propio: el módulo TTL-RS485 va en el 2do conector, TX 2 / RX 3.
+    "waveshare-esp32-c5-touch-lcd-2-8": {
+        "name": "Waveshare ESP32-C5-Touch-LCD-2.8",
+        "i2c": {"id": 0, "sda": 0, "scl": 1, "freq": 400000},
+        "relays": {"driver": "gpio", "pins": []},
+        "rtc": {"driver": "pcf85063", "addr": 0x51},
+        "rs485": {"uart": 1, "tx": 2, "rx": 3, "baud": 4800, "external": True},
+        "inputs": [],
+        "screen": {"driver": "st7789", "width": 240, "height": 320, "spi": 1,
+                   "sck": 6, "mosi": 7, "cs": 10, "dc": 9, "bl": None,
+                   "invert": True, "touch": {"driver": "cst3530", "addr": 0x58},
+                   "expander": {"driver": "ch32v003", "addr": 0x24,
+                                "touch_rst": 0, "lcd_rst": 1, "bl_power": 3}},
+        # ADC de 10 bits del CH32 con divisor 1/3 (calibrado en DruidaVision3)
+        "battery": {"driver": "ch32v003", "addr": 0x24, "mv_per_count": 3300 / 1024 * 3},
     },
     # Familia ESP32-S3-Touch-LCD con panel RGB. Panel, touch GT911 y expansor
     # los maneja ddhw (firmware con pantalla); el I2C 8/9 queda tomado por él,

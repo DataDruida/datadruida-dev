@@ -56,6 +56,37 @@ class I2C:
         self.rtc = bytearray(7)
         self.touch = None     # (x, y) mientras se toca la pantalla
         self.fail = False
+        self.ch32 = []        # escrituras al coprocesador CH32V003 (0x24): (reg, val)
+        self.ch32_adc = 440   # crudo del ADC de batería
+        self.cst3530 = []     # comandos al touch CST3530 (0x58)
+        self._last = {}
+
+    def writeto(self, addr, buf, stop=True):
+        if self.fail:
+            raise OSError(19)
+        buf = bytes(buf)
+        if addr == 0x24:
+            if len(buf) == 2:
+                self.ch32.append((buf[0], buf[1]))
+        elif addr == 0x58:
+            self.cst3530.append(buf)
+        else:
+            raise OSError(19)
+        self._last[addr] = buf
+
+    def readfrom(self, addr, n):
+        if self.fail:
+            raise OSError(19)
+        if addr == 0x24 and self._last.get(addr) == b"\x06":
+            return bytes([self.ch32_adc & 0xFF, self.ch32_adc >> 8])
+        if addr == 0x58 and self._last.get(addr) == b"\xD0\x07\x00\x00":
+            b = bytearray(n)
+            if self.touch is not None:
+                x, y = self.touch
+                b[2], b[3] = 0xFF, 0x01
+                b[4], b[5], b[7], b[8] = x & 0xFF, y & 0xFF, (x >> 8) | ((y >> 8) << 4), 0x60
+            return bytes(b)
+        raise OSError(19)
 
     def writeto_mem(self, addr, reg, buf):
         if self.fail:
@@ -189,7 +220,9 @@ class SPI:
         SPI.last = self
 
     def write(self, b):
-        self.sent.append((Pin.out.get(42, None), bytes(b)))
+        from dd import board            # el pin DC de la pantalla de la placa elegida
+        dc = ((board.current().get("screen") or {}).get("dc", 42))
+        self.sent.append((Pin.out.get(dc, None), bytes(b)))
 
     def commands(self):
         return [b[0] for (dc, b) in self.sent if dc == 0]

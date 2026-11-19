@@ -76,6 +76,25 @@
       }
     },
     {
+      "id": "waveshare-esp32-c5-touch-lcd-2-8",
+      "brand": "Waveshare",
+      "name": "ESP32-C5-Touch-LCD-2.8",
+      "summary": "ESP32-C5 con WiFi 6 doble banda (2,4 y 5 GHz), pantalla táctil de 2,8\" (240 x 320), reloj RTC, parlante, micrófono y batería de 1000 mAh. Sin relays ni RS485 propio: los sensores van con un módulo TTL-RS485 en el 2do conector (TX 2 / RX 3).",
+      "chip": "ESP32-C5 (32 MB flash, 8 MB PSRAM)",
+      "firmware": "micropython-esp32c5",
+      "status": "unverified",
+      "mains": false,
+      "io": {
+        "power": "5 V USB-C o batería 3,7 V",
+        "relays": 0,
+        "digital_inputs": 0,
+        "rs485": { "uart": 1, "tx": 2, "rx": 3, "baud": 4800, "external": true },
+        "rtc": "PCF85063",
+        "screen": { "driver": "st7789", "width": 240, "height": 320, "touch": "CST3530" },
+        "battery": true
+      }
+    },
+    {
       "id": "waveshare-esp32-s3-touch-lcd-7b",
       "brand": "Waveshare",
       "name": "ESP32-S3-Touch-LCD-7B",

@@ -56,6 +56,18 @@ def battery():
     c = board.current().get("battery")
     if not c:
         return None
+    if c.get("driver") == "ch32v003":
+        try:
+            from dd import board
+            i2c = board.i2c()
+            raw = 0
+            for _ in range(4):
+                i2c.writeto(c["addr"], b"\x06", False)
+                d = i2c.readfrom(c["addr"], 2)
+                raw += d[0] | d[1] << 8
+            return round(raw / 4 * c["mv_per_count"] / 1000, 2)
+        except Exception:
+            return None
     try:
         from machine import ADC, Pin
         a = ADC(Pin(c["adc"]))
