@@ -1,0 +1,2 @@
+idf_component_register(SRCS "main.c" INCLUDE_DIRS "."
+                       REQUIRES dd_core esp_driver_gpio esp_driver_i2c json)

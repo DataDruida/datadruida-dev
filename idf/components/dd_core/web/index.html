@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DataDruida</title>
+<style>
+:root{--bg:#f6f5f1;--fg:#1d211c;--mut:#646b62;--card:#fff;--line:#e3e1da;--acc:#2f7d4f;--acc2:#e9f3ec;--warn:#a35a00;--err:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#121512;--fg:#e8ebe6;--mut:#9aa396;--card:#1b1f1b;--line:#2c322b;--acc:#5fbf83;--acc2:#1d2a21;--warn:#e0a04a;--err:#ff8a80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:560px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 10px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:6px}.top small{color:var(--mut)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mut);flex:none}.dot.on{background:var(--acc)}.dot.bad{background:var(--err)}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px}
+p{margin:6px 0}.mut{color:var(--mut);font-size:13px}.warn{color:var(--warn)}.err{color:var(--err)}
+button,.btn{font:inherit;border:0;border-radius:8px;padding:10px 14px;background:var(--acc);color:#fff;cursor:pointer}
+button.sec{background:var(--acc2);color:var(--fg)}button:disabled{opacity:.5;cursor:default}
+input,select{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);margin:4px 0 10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.nets{list-style:none;padding:0;margin:8px 0}.nets li{padding:9px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between}
+.nets li:hover,.nets li.sel{background:var(--acc2)}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:var(--acc);width:0}
+.key{font:600 20px ui-monospace,Consolas,monospace;letter-spacing:2px}
+.relays{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:8px}
+.relays button{background:var(--acc2);color:var(--fg);padding:14px 6px}.relays button.on{background:var(--acc);color:#fff}
+.inputs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.inputs span{padding:4px 8px;border-radius:6px;background:var(--acc2);font-size:13px}.inputs span.on{background:var(--acc);color:#fff}
+label.ck{display:flex;gap:8px;align-items:center}label.ck input{width:auto;margin:0}
+.hide{display:none}a{color:var(--acc)}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><span id="dot" class="dot"></span><h1>DataDruida</h1><small id="dev"></small></div>
+  <p id="netline" class="mut">Cargando...</p>
+  <p id="safe" class="warn hide">Modo seguro: el equipo arrancó sin la aplicación porque se reinició por error varias veces. Instalá una versión corregida desde acá.</p>
+
+  <section id="keybox" class="hide">
+    <h2>Clave del equipo</h2>
+    <p class="mut">Para cambiar algo desde tu red hace falta la clave que aparece en la pantalla del equipo o en la red de configuración.</p>
+    <input id="keyin" autocomplete="off" autocapitalize="off" placeholder="ej. k7pq2mzx">
+    <button onclick="saveKey()">Guardar clave</button>
+  </section>
+
+  <section id="keyshow" class="hide">
+    <h2>Anotá la clave de este equipo</h2>
+    <p class="key" id="keyval"></p>
+    <p class="mut">La vas a necesitar para actualizarlo o configurarlo desde tu red WiFi.</p>
+  </section>
+
+  <section>
+    <h2>Red WiFi</h2>
+    <p id="wifist" class="mut"></p>
+    <button class="sec" id="scanbtn" onclick="scan()">Buscar redes</button>
+    <ul class="nets" id="nets"></ul>
+    <div id="wform" class="hide">
+      <input id="ssid" placeholder="Nombre de la red" autocomplete="off">
+      <input id="pass" placeholder="Contraseña" autocomplete="off" autocapitalize="off">
+      <button onclick="saveWifi()">Conectar</button>
+    </div>
+    <p class="mut"><a href="#" onclick="manual();return false">Escribir el nombre a mano</a> (redes ocultas)</p>
+  </section>
+
+  <section id="relsec" class="hide">
+    <h2>Probar la placa</h2>
+    <div id="boardsel" class="hide">
+      <p class="mut">¿Qué placa es? Elegila una sola vez: define qué pines maneja el equipo.</p>
+      <select id="board" onchange="setBoard()"></select>
+    </div>
+    <div id="relbox">
+      <p class="mut">Tocá un relé para prenderlo o apagarlo. Al reiniciar arrancan todos apagados.</p>
+      <div class="relays" id="relays"></div>
+      <div class="row" style="margin-top:10px"><button class="sec" onclick="post('/api/relays/test')">Probar todos en secuencia</button><button class="sec" onclick="post('/api/relays/off')">Apagar todos</button></div>
+      <p class="mut" style="margin-top:10px"><a href="#" onclick="$('boardsel').classList.remove('hide');return false">Cambiar el modelo de placa</a></p>
+      <div id="inbox" class="hide"><p class="mut" style="margin-top:12px">Entradas digitales</p><div class="inputs" id="inputs"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Actualizaciones</h2>
+    <p>Versión instalada: <b id="ver"></b></p>
+    <p id="otamsg" class="mut"></p>
+    <div class="bar hide" id="otabar"><i id="otafill"></i></div>
+    <div class="row">
+      <button class="sec" onclick="post('/api/ota/check')">Buscar actualización</button>
+      <button id="instbtn" class="hide" onclick="post('/api/ota/install')">Instalar</button>
+    </div>
+    <label class="ck" style="margin-top:12px"><input type="checkbox" id="auto" onchange="post('/api/settings',{auto_update:this.checked})"> Instalar las actualizaciones solas</label>
+    <details style="margin-top:12px"><summary class="mut">Subir un firmware (.bin) desde esta compu</summary>
+      <p class="mut">Si el archivo no arranca bien, el equipo vuelve solo a la versión anterior.</p>
+      <input type="file" id="bin" accept=".bin">
+      <button onclick="upload()">Subir e instalar</button>
+    </details>
+  </section>
+
+  <section>
+    <h2>Equipo</h2>
+    <p class="mut" id="sys"></p>
+    <button class="sec" onclick="if(confirm('¿Reiniciar el equipo?'))post('/api/restart')">Reiniciar</button>
+  </section>
+</main>
+<script>
+const $=id=>document.getElementById(id);let S={},key=localStorage.ddkey||'',sel='';
+function hdr(j){const h={'X-DD-Key':key};if(j)h['Content-Type']='application/json';return h}
+async function post(u,b){const r=await fetch(u,{method:'POST',headers:hdr(b),body:b?JSON.stringify(b):undefined});
+  const j=await r.json().catch(()=>({}));if(r.status==401){$('keybox').classList.remove('hide');alert('Falta la clave del equipo');}
+  else if(j.error)alert(j.error);setTimeout(load,300);return j}
+function saveKey(){key=$('keyin').value.trim();localStorage.ddkey=key;$('keybox').classList.add('hide')}
+const NET={online:'Conectado',connecting:'Conectando...',failed:'No logra conectar',off:'Sin red configurada'};
+async function load(){try{S=await (await fetch('/api/status')).json()}catch(e){$('netline').textContent='Sin respuesta del equipo';return}
+  $('dev').textContent=S.hostname+' · '+S.app;$('ver').textContent=S.version;
+  $('dot').className='dot '+(S.net=='online'?'on':(S.net=='failed'?'bad':''));
+  $('netline').textContent=S.net=='online'?('Conectado a '+S.ssid+' · http://'+S.hostname+'.local · '+S.ip):NET[S.net];
+  $('wifist').textContent=S.ssid?('Red guardada: '+S.ssid+' — '+NET[S.net]):'Elegí tu red WiFi para que el equipo se pueda actualizar solo.';
+  $('safe').classList.toggle('hide',!S.safe_mode);
+  if(S.key){$('keyshow').classList.remove('hide');$('keyval').textContent=S.key;key=S.key;localStorage.ddkey=key}
+  else if(!key)$('keybox').classList.remove('hide');
+  $('otamsg').textContent=S.ota_msg||'';$('otamsg').className=S.ota=='error'?'err':'mut';
+  $('instbtn').classList.toggle('hide',S.ota!='available');
+  $('otabar').classList.toggle('hide',S.ota!='downloading');$('otafill').style.width=S.ota_progress+'%';
+  $('auto').checked=S.auto_update;
+  $('sys').textContent='Placa: '+(S.board||'—')+' · equipo '+S.device+' · encendido hace '+Math.round(S.uptime_s/60)+' min · RAM libre '+S.heap_kb+' KB'+(S.pending_verify?' · versión a prueba':'');
+  if(S.relays||S.boards){$('relsec').classList.remove('hide');drawRelays()}}
+function drawRelays(){
+  if(S.boards){const b=$('board');if(S.board_unknown)$('boardsel').classList.remove('hide');
+    if(!b.options.length){b.add(new Option('Elegir...',''));S.boards.forEach(x=>b.add(new Option(x.name,x.id)))}if(document.activeElement!==b)b.value=S.board_unknown?'':S.board}
+  $('relbox').classList.toggle('hide',!S.relays||!S.relays.length);
+  if(S.relays){const r=$('relays');if(r.children.length!=S.relays.length){r.innerHTML='';S.relays.forEach((_,i)=>{const e=document.createElement('button');
+    e.textContent='Relé '+(i+1);e.onclick=()=>post('/api/relay',{ch:i+1,on:!S.relays[i]});r.appendChild(e)})}
+    S.relays.forEach((on,i)=>r.children[i].classList.toggle('on',on))}
+  $('inbox').classList.toggle('hide',!S.inputs||!S.inputs.length);
+  if(S.inputs)$('inputs').innerHTML=S.inputs.map((on,i)=>'<span class="'+(on?'on':'')+'">DI'+(i+1)+'</span>').join('')}
+async function setBoard(){const v=$('board').value;if(!v)return;
+  if(!confirm('¿Configurar el equipo como '+$('board').selectedOptions[0].text+'? Se reinicia.'))return;post('/api/board',{board:v})}
+async function scan(){$('scanbtn').disabled=true;$('scanbtn').textContent='Buscando...';
+  try{const r=await fetch('/api/scan',{headers:hdr()});if(r.status==401){$('keybox').classList.remove('hide');return}
+    const j=await r.json();$('nets').innerHTML='';
+    j.networks.sort((a,b)=>b.rssi-a.rssi).forEach(n=>{const li=document.createElement('li');
+      li.innerHTML='<span></span><span class="mut">'+(n.secure?'🔒 ':'')+(n.rssi>-60?'●●●':n.rssi>-72?'●●○':'●○○')+'</span>';
+      li.firstChild.textContent=n.ssid;li.onclick=()=>{[...$('nets').children].forEach(x=>x.classList.remove('sel'));li.classList.add('sel');
+        $('ssid').value=n.ssid;$('wform').classList.remove('hide');$('pass').focus()};$('nets').appendChild(li)})
+  }finally{$('scanbtn').disabled=false;$('scanbtn').textContent='Buscar redes'}}
+function manual(){$('wform').classList.remove('hide');$('ssid').focus()}
+async function saveWifi(){const j=await post('/api/wifi',{ssid:$('ssid').value,pass:$('pass').value});
+  if(j.ok){$('wform').classList.add('hide');$('nets').innerHTML='';
+    if(S.via_setup_ap)alert('Listo. El equipo se está conectando a '+$('ssid').value+'. En unos segundos cerrá esta red y conectate a la tuya: el panel queda en http://'+S.hostname+'.local')}}
+function upload(){const f=$('bin').files[0];if(!f)return alert('Elegí un archivo .bin');
+  const x=new XMLHttpRequest();x.open('POST','/api/ota/upload');x.setRequestHeader('X-DD-Key',key);
+  $('otabar').classList.remove('hide');x.upload.onprogress=e=>{$('otafill').style.width=(e.loaded/e.total*100)+'%';$('otamsg').textContent='Subiendo... '+Math.round(e.loaded/e.total*100)+'%'};
+  x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}
+    if(x.status==200){$('otamsg').textContent='Instalado. El equipo se reinicia; esta página se actualiza sola.';setTimeout(()=>location.reload(),15000)}
+    else{if(x.status==401)$('keybox').classList.remove('hide');alert(j.error||'Error al subir')}};
+  x.onerror=()=>alert('Se cortó la conexión con el equipo');x.send(f)}
+load();setInterval(load,2500);
+</script>
+</body>
+</html>

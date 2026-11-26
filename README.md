@@ -9,6 +9,11 @@ programa en la placa con un botón. Todo desde el navegador.
 Este repo es la parte abierta (licencia **Apache-2.0**): el runtime `dd` para
 MicroPython, el catálogo de placas y sensores, y los ejemplos.
 
+> **Nov-2026 — migración a ESP-IDF en curso.** Las placas nuevas llegan con un
+> firmware DataDruida en ESP-IDF que se conecta a tu WiFi y se actualiza por OTA,
+> sin USB. Ver [`idf/README.md`](idf/README.md). El runtime MicroPython de abajo
+> sigue funcionando para las placas que ya lo tienen.
+
 ## Cómo sumarte
 
 - **Usar la herramienta:** pedí acceso en https://app.datadruida.com.ar/developers

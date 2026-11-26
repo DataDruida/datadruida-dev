@@ -1,0 +1,17 @@
+# Tabla de particiones común a todos los firmwares DataDruida ESP-IDF
+# (módulos de 16 MB: ETH-8DI-8RO, Relay-6CH, Touch-LCD-4.3B, 7B...).
+#
+# ⚠ ESTA TABLA NO SE PUEDE CAMBIAR POR OTA. Es la única cosa que obliga a
+# pasar por USB, así que se definió con margen de sobra desde el principio:
+#   - dos apps de 6 MB (A/B): lo que se instala va a la que no está corriendo,
+#     y si no arranca el bootloader vuelve a la otra.
+#   - otadata: dice cuál de las dos arranca.
+#   - storage (~3,8 MB, FAT): para archivos de la app del usuario.
+#
+# Name,     Type, SubType,  Offset,   Size
+nvs,        data, nvs,      0x9000,   0x6000
+otadata,    data, ota,      0xf000,   0x2000
+phy_init,   data, phy,      0x11000,  0x1000
+ota_0,      app,  ota_0,    0x20000,  0x600000
+ota_1,      app,  ota_1,    0x620000, 0x600000
+storage,    data, fat,      0xC20000, 0x3E0000

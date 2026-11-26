@@ -1,0 +1,24 @@
+# dd-reles — placas Waveshare ESP32-S3 sin pantalla (16 MB de flash)
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../partitions-16mb.csv"
+
+# OTA con vuelta atrás: una imagen nueva arranca "a prueba" y si no se
+# confirma (dd_core la confirma al conectar al WiFi) el bootloader vuelve a
+# la anterior. Esto vive en el bootloader: sólo se graba por USB.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+CONFIG_BOOTLOADER_APP_ANTI_ROLLBACK=n
+
+# HTTPS a app.datadruida.com.ar con el bundle de CAs de ESP-IDF
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=n
+
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_LWIP_LOCAL_HOSTNAME="datadruida"
+
+# Consola por el USB nativo (las tres placas exponen el USB del S3)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
