@@ -8,10 +8,12 @@ en el taller, antes de despachar la placa.
 ```
 idf/
   components/dd_core/      base común: WiFi, portal, OTA, rollback, modo seguro, panel web
+  components/dd_app/       API del programa del usuario (dd.h): relés, entradas, sensores, hora, control, pantalla
   boards/lcd43b/           drivers de la Waveshare ESP32-S3-Touch-LCD-4.3B (CH422G, RGB, GT911)
   apps/dd-pantalla/        firmware de prueba con pantalla (4.3B, LVGL 9.4)
   apps/dd-reles/           firmware de prueba sin pantalla (ETH-8DI-8RO, Relay-6CH, Relay-1CH)
   partitions-16mb.csv      tabla de particiones común (A/B de 6 MB + 3,8 MB de datos)
+  examples/                programas de ejemplo en C (un app.c cada uno)
   build.ps1                compilar / grabar
   tools/release.mjs        publicar una versión para OTA
   tools/panel-mock.mjs     simulador del panel web para diseñarlo sin placa
@@ -105,6 +107,64 @@ placa siga el firmware que su dueño compila desde app.datadruida.com.ar/develop
 | `POST /api/settings` `{auto_update, manifest}` | sí | |
 | `POST /api/restart` | sí | |
 | `POST /api/relay` `{ch,on}`, `/api/relays/test`, `/api/relays/off`, `/api/board` | sí | sólo `dd-reles` |
+
+## El programa del usuario: `app.c` + `dd.h`
+
+Cada firmware compila un único archivo de usuario, `main/app.c`, contra la API
+de `components/dd_app/include/dd.h`. Vacío de fábrica (la placa sólo espera un
+programa); el servicio de compilación de /developers va a reemplazar **sólo**
+ese archivo, así la base (WiFi, OTA, vuelta atrás) va siempre incluida.
+
+```c
+#include "dd.h"
+
+static dd_sensor_t *th;
+static dd_hyst_t extractor = DD_HYST(25.0, 28.0, DD_BAJA);
+
+void dd_setup(void) { th = dd_sensor("slicetex-th-mb-02s", 1); dd_every(5000); }
+
+void dd_loop(void) {
+    dd_reading_t v;
+    float t = dd_sensor_read(th, &v) ? v.temp : NAN;
+    dd_relay_set(2, dd_hyst_update(&extractor, t));
+    dd_log("T %.1f extractor %s", t, dd_relay_get(2) ? "ON" : "OFF");
+}
+```
+
+Mismas ideas que el runtime MicroPython (`dd.relays()`, `dd.sensor()`,
+`dd.in_window()`, `Hysteresis`, `Cycle`, `vpd`), con `dd_setup`/`dd_loop`
+al estilo Arduino. Lo que el sistema hace solo: relés apagados al arrancar,
+hora por internet (UTC-3; sin hora, `dd_in_window()` da false), watchdog de
+60 s que apaga relés y reinicia, re-asentado del TCA9554, topes de tiempo
+encendido (`dd_relay_max_on`), valores faltantes = `NAN` → los controles apagan.
+
+En placas con pantalla el programa dibuja con LVGL 9 en la pestaña
+**"Mi programa"** (`dd_ui_root()`, siempre entre `dd_ui_lock()`/`dd_ui_unlock()`,
+y leyendo sensores fuera del lock). `dd_log()` sale por serie y en la sección
+"Tu programa" del panel web (`GET /api/log`, con clave): se depura sin USB.
+
+```powershell
+.\idf\build.ps1 dd-reles -Program examples\02_termostato.c
+```
+
+| Ejemplo | Placa | Qué hace |
+|---|---|---|
+| `01_relay_por_horario.c` | con relés | relé 1 de 08:00 a 20:00 |
+| `02_termostato.c` | con relés + TH-MB-02S | extractor con banda 25–28 °C |
+| `03_riego_por_humedad.c` | con relés + SOIL-MB-THC-S | riego por pulsos con tope de 60 s |
+| `04_pantalla_hola.c` | 4.3B | hora en grande + botón que cuenta toques |
+| `05_pantalla_clima.c` | 4.3B + TH-MB-02S | temperatura, humedad y VPD |
+
+⚠ **`main` se enlaza con `WHOLE_ARCHIVE`.** `dd_app` trae `dd_setup`/`dd_loop`
+vacíos como `weak`; sin `WHOLE_ARCHIVE` el enlazador se queda con esos y
+descarta los de `app.c` (compila sin errores y la placa corre un programa vacío).
+El servicio de compilación tiene que conservar esto.
+
+⚠ `build.ps1 -Program` le pone fecha nueva a `app.c`: `Copy-Item` conserva la
+del original y ninja no lo recompilaba.
+
+⚠ En la 4.3B el RS485 de la placa usa GPIO43/44, los mismos que la consola
+UART0: al abrir el bus se corta el log por serie (sigue en el panel). Sin probar.
 
 ## Fuentes con acentos
 

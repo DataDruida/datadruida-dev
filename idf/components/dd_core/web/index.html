@@ -26,6 +26,7 @@ input,select{font:inherit;width:100%;padding:10px;border:1px solid var(--line);b
 .relays button{background:var(--acc2);color:var(--fg);padding:14px 6px}.relays button.on{background:var(--acc);color:#fff}
 .inputs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.inputs span{padding:4px 8px;border-radius:6px;background:var(--acc2);font-size:13px}.inputs span.on{background:var(--acc);color:#fff}
 label.ck{display:flex;gap:8px;align-items:center}label.ck input{width:auto;margin:0}
+pre.log{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font:12px/1.5 ui-monospace,Consolas,monospace;max-height:260px;overflow:auto;white-space:pre-wrap;margin:8px 0 0}
 .hide{display:none}a{color:var(--acc)}
 </style>
 </head>
@@ -76,6 +77,12 @@ label.ck{display:flex;gap:8px;align-items:center}label.ck input{width:auto;margi
     </div>
   </section>
 
+  <section id="progsec" class="hide">
+    <h2>Tu programa</h2>
+    <p id="progst" class="mut"></p>
+    <pre class="log" id="log">Todavía no hay mensajes.</pre>
+  </section>
+
   <section>
     <h2>Actualizaciones</h2>
     <p>Versión instalada: <b id="ver"></b></p>
@@ -120,7 +127,14 @@ async function load(){try{S=await (await fetch('/api/status')).json()}catch(e){$
   $('otabar').classList.toggle('hide',S.ota!='downloading');$('otafill').style.width=S.ota_progress+'%';
   $('auto').checked=S.auto_update;
   $('sys').textContent='Placa: '+(S.board||'—')+' · equipo '+S.device+' · encendido hace '+Math.round(S.uptime_s/60)+' min · RAM libre '+S.heap_kb+' KB'+(S.pending_verify?' · versión a prueba':'');
-  if(S.relays||S.boards){$('relsec').classList.remove('hide');drawRelays()}}
+  if(S.relays||S.boards){$('relsec').classList.remove('hide');drawRelays()}
+  if(S.program){$('progsec').classList.remove('hide');const p=S.program;
+    $('progst').textContent=(p.running?'Corriendo · '+p.loops+' vueltas':(S.safe_mode?'Detenido (modo seguro)':'Detenido'))+' · hora '+(p.time_ok?'OK':'sin sincronizar (lo que va por horario queda apagado)');
+    if(p.log_seq!==logSeq&&key){logSeq=p.log_seq;loadLog()}}}
+let logSeq=-1;
+async function loadLog(){const r=await fetch('/api/log',{headers:hdr()});if(!r.ok)return;const j=await r.json();
+  const el=$('log');const atEnd=el.scrollTop+el.clientHeight>=el.scrollHeight-4;el.textContent=j.lines.length?j.lines.join('
+'):'Todavía no hay mensajes.';if(atEnd)el.scrollTop=el.scrollHeight}
 function drawRelays(){
   if(S.boards){const b=$('board');if(S.board_unknown)$('boardsel').classList.remove('hide');
     if(!b.options.length){b.add(new Option('Elegir...',''));S.boards.forEach(x=>b.add(new Option(x.name,x.id)))}if(document.activeElement!==b)b.value=S.board_unknown?'':S.board}

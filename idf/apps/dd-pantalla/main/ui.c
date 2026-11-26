@@ -21,6 +21,7 @@
 #include "esp_lv_adapter.h"
 #include "lvgl.h"
 #include "dd_core.h"
+#include "dd.h"
 #include "ui.h"
 
 #define C_BG     0x0F1411
@@ -53,6 +54,9 @@ static char s_pw_ssid[33];
 static lv_obj_t *s_ver_lbl, *s_ota_msg, *s_ota_bar, *s_inst_btn, *s_auto_sw, *s_local_lbl;
 /* Probar */
 static lv_obj_t *s_sys_lbl;
+/* Mi programa */
+static lv_obj_t *s_prog_tab;
+static bool s_prog_claimed;
 
 /* escaneo en segundo plano */
 static dd_ap_t s_aps[20];
@@ -537,6 +541,36 @@ static void refresh_cb(lv_timer_t *t)
     lv_label_set_text(s_sys_lbl, b);
 }
 
+/* ── API para el programa del usuario (dd_ui.h) ─────────────────────── */
+
+lv_obj_t *dd_ui_root(void)
+{
+    // La primera vez que el programa pide la pantalla, se saca el texto de
+    // "todavía no hay programa" y la pestaña queda en blanco para él.
+    if (s_prog_tab && !s_prog_claimed) {
+        s_prog_claimed = true;
+        lv_obj_clean(s_prog_tab);
+    }
+    return s_prog_tab;
+}
+
+bool dd_ui_lock(void)   { return esp_lv_adapter_lock(1000) == ESP_OK; }
+void dd_ui_unlock(void) { esp_lv_adapter_unlock(); }
+const lv_font_t *dd_font(int px) { return px <= 16 ? F16 : px <= 20 ? F20 : F28; }
+void dd_ui_show(void)   { if (s_tv) lv_tabview_set_active(s_tv, 4, LV_ANIM_OFF); }
+
+static void build_program(lv_obj_t *tab)
+{
+    lv_obj_t *c = column(tab, 12);
+    lv_obj_set_size(c, LV_PCT(100), LV_PCT(100));
+    label(c, F20, C_TEXT, "Todavía no hay un programa en esta placa");
+    lv_obj_t *t = label(c, F16, C_MUTED,
+        "Cuando le pidas algo a la IA en app.datadruida.com.ar/developers, el programa llega por WiFi "
+        "y se muestra en esta pestaña.");
+    lv_label_set_long_mode(t, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(t, LV_PCT(100));
+}
+
 /* ── armado ──────────────────────────────────────────────────────────── */
 
 void ui_build(void)
@@ -586,9 +620,9 @@ void ui_build(void)
     lv_obj_set_style_text_font(bar, F20, 0);
     lv_obj_set_style_text_color(bar, lv_color_hex(C_MUTED), 0);
 
-    const char *names[] = { "Inicio", "WiFi", "Actualizar", "Probar" };
-    lv_obj_t *tabs[4];
-    for (int i = 0; i < 4; i++) {
+    const char *names[] = { "Inicio", "WiFi", "Actualizar", "Probar", "Mi programa" };
+    lv_obj_t *tabs[5];
+    for (int i = 0; i < 5; i++) {
         tabs[i] = lv_tabview_add_tab(s_tv, names[i]);
         lv_obj_set_style_pad_all(tabs[i], 20, 0);
         lv_obj_t *tb = lv_obj_get_child(bar, i);
@@ -600,6 +634,8 @@ void ui_build(void)
     build_wifi(tabs[1]);
     build_update(tabs[2]);
     build_test(tabs[3]);
+    s_prog_tab = tabs[4];
+    build_program(tabs[4]);
     build_password_layer();
 
     refresh_cb(NULL);

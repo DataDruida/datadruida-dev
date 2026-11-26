@@ -16,6 +16,7 @@
 #include "esp_lv_adapter.h"
 #include "rgb_lcd_port.h"
 #include "dd_core.h"
+#include "dd_app.h"
 #include "ui.h"
 
 static const char *TAG = "dd-pantalla";
@@ -28,6 +29,7 @@ void app_main(void)
     cfg.open_ap_if_unset = false;   // el WiFi se elige en la pantalla
     cfg.boot_button_gpio = -1;      // GPIO0 = dato G3 del LCD
     cfg.auto_update_default = false;// la pantalla avisa y el usuario decide
+    dd_app_core_hooks(&cfg);        // mensajes del programa en el panel
     ESP_ERROR_CHECK(dd_core_start(&cfg));
 
     const esp_lv_adapter_rotation_t rot = ESP_LV_ADAPTER_ROTATE_0;
@@ -61,6 +63,8 @@ void app_main(void)
         ui_build();
         esp_lv_adapter_unlock();
     }
+    // Después de la interfaz: dd_setup() del programa ya puede pedir dd_ui_root().
+    ESP_ERROR_CHECK(dd_app_start());
     ESP_LOGI(TAG, "RAM interna libre: %u KB, PSRAM libre: %u KB",
              (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
              (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
