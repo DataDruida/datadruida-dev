@@ -1,0 +1,5 @@
+apps/*/build
+apps/*/build-log.txt
+apps/*/sdkconfig
+apps/*/sdkconfig.old
+**/__pycache__

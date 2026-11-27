@@ -15,6 +15,7 @@ idf/
   partitions-16mb.csv      tabla de particiones común (A/B de 6 MB + 3,8 MB de datos)
   examples/                programas de ejemplo en C (un app.c cada uno)
   build.ps1                compilar / grabar
+  build-service/           servicio de compilación (server.py + Dockerfile)
   tools/release.mjs        publicar una versión para OTA
   tools/panel-mock.mjs     simulador del panel web para diseñarlo sin placa
 ```
@@ -165,6 +166,52 @@ del original y ninja no lo recompilaba.
 
 ⚠ En la 4.3B el RS485 de la placa usa GPIO43/44, los mismos que la consola
 UART0: al abrir el bus se corta el log por serie (sigue en el panel). Sin probar.
+
+## Servicio de compilación (`build-service/`)
+
+Recibe el `app.c` del usuario, lo compila con la base de la placa y devuelve el
+`.bin` para OTA. Python sin dependencias + ESP-IDF; en el VPS corre en Docker.
+
+```
+POST /build   Authorization: Bearer <DD_BUILD_TOKEN>
+  {"app": "dd-pantalla" | "dd-reles", "code": "<app.c>"}
+→ {"ok": true,  "seconds": 15.1, "size": ..., "sha256": "...", "warnings": [], "bin_b64": "..."}
+→ {"ok": false, "errors": [{"line": 3, "col": 26, "kind": "error", "msg": "expected ';' before '}' token"}]}
+```
+
+- **Rápido porque está "caliente":** cada app ya está compilada con el `app.c`
+  vacío; un pedido sólo recompila `app.c` y enlaza. Medido en la PC de
+  escritorio (Windows, 12 hilos): **15–17 s** por pedido; un error de
+  compilación vuelve en **2 s**. Calentar de cero: ~4 min la pantalla, ~2 min relés.
+- **Errores para Claude:** línea, columna y mensaje de gcc (incluye el
+  "did you mean…" de funciones que no existen), para corregir solo.
+- **Una compilación a la vez** (lock); un pedido espera hasta 2 min y si no, 429.
+- **Copia de trabajo** (`DD_WORK_DIR`): los pedidos nunca tocan el repo.
+- **Filtro del código** antes de compilar: `#include` sólo con nombre (sin
+  rutas, `..`, unidades ni macros), sin `.incbin`, `#embed`, `#line` ni
+  `#pragma GCC optimize/target`; normaliza `\`+salto y el dígrafo `%:`
+  antes de revisar. Tope 100 KB.
+- **Aislamiento en el VPS:** usuario sin privilegios, sin secretos en la
+  imagen, topes de CPU/memoria/procesos (`docker run --cpus 3 --memory 4g
+  --pids-limit 512`).
+
+En esta PC (sin Docker):
+
+```powershell
+. C:\esp\esp-idf\export.ps1; $env:DD_BUILD_TOKEN="..."; $env:DD_WORK_DIR="C:\dd-build-work"; python idf\build-service\server.py
+```
+
+En el VPS:
+
+```bash
+docker build -f idf/build-service/Dockerfile -t dd-build idf/
+docker run -d --name dd-build --restart unless-stopped -e DD_BUILD_TOKEN=... -p 8080:8080 --cpus 3 --memory 4g --pids-limit 512 dd-build
+```
+
+⚠ El Dockerfile no se probó todavía (esta PC no tiene Docker).
+⚠ Falta: versión por programa. El equipo instala sólo si la versión es mayor,
+y todos los programas salen con la versión de la base: el manifest por placa
+(paso 3) tiene que decidir por "build id" distinto, no por número de versión.
 
 ## Fuentes con acentos
 
