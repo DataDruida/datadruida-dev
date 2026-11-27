@@ -45,6 +45,7 @@ static const lv_font_t *F16, *F20, *F28;
 static lv_obj_t *s_tv;
 static lv_obj_t *s_hdr_dot, *s_hdr_txt;
 /* Inicio */
+static lv_obj_t *s_step2_ico, *s_step2_txt, *s_step2_btn, *s_code_lbl;
 static lv_obj_t *s_step1_ico, *s_step1_txt, *s_step1_btn, *s_qr, *s_qr_cap, *s_key_lbl, *s_safe_lbl;
 /* WiFi */
 static lv_obj_t *s_net_list, *s_scan_btn, *s_wifi_state, *s_ap_btn, *s_ap_info;
@@ -143,6 +144,15 @@ static void step(lv_obj_t *p, const char *num, const char *txt, lv_obj_t **ico_o
     if (txt_out) *txt_out = t;
 }
 
+static void pair_cb(lv_event_t *e)
+{
+    (void)e;
+    dd_status_t st;
+    dd_status_get(&st);
+    if (st.pair_code[0]) dd_pair_cancel();
+    else dd_pair_start();
+}
+
 static void build_home(lv_obj_t *tab)
 {
     lv_obj_set_flex_flow(tab, LV_FLEX_FLOW_ROW);
@@ -161,8 +171,12 @@ static void build_home(lv_obj_t *tab)
 
     step(left, "1", "Conectala a tu red WiFi", &s_step1_ico, &s_step1_txt);
     s_step1_btn = button(left, LV_SYMBOL_WIFI "  Elegir mi WiFi", true, goto_tab_cb, (void *)1);
-    step(left, "2", "Entrá a app.datadruida.com.ar/developers y contale a la IA qué querés que haga", NULL, NULL);
-    step(left, "3", "El programa llega solo a la placa, por WiFi", NULL, NULL);
+    step(left, "2", "Vinculala a tu cuenta de app.datadruida.com.ar", &s_step2_ico, &s_step2_txt);
+    s_code_lbl = label(left, F28, C_ACC, "");
+    lv_obj_set_style_text_letter_space(s_code_lbl, 6, 0);
+    lv_obj_add_flag(s_code_lbl, LV_OBJ_FLAG_HIDDEN);
+    s_step2_btn = button(left, LV_SYMBOL_LOOP "  Vincular a mi cuenta", true, pair_cb, NULL);
+    step(left, "3", "Contale a la IA qué querés que haga: el programa llega solo, por WiFi", NULL, NULL);
     s_safe_lbl = label(left, F16, C_WARN,
         "Modo seguro: la placa se reinició por error varias veces y arrancó sólo con lo básico. Instalá una versión corregida.");
     lv_label_set_long_mode(s_safe_lbl, LV_LABEL_LONG_WRAP);
@@ -468,6 +482,23 @@ static void refresh_cb(lv_timer_t *t)
     else lv_obj_remove_flag(s_step1_btn, LV_OBJ_FLAG_HIDDEN);
     if (s.safe_mode) lv_obj_remove_flag(s_safe_lbl, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(s_key_lbl, s.admin_key);
+
+    // Paso 2: vincular a la cuenta
+    const bool pairing = s.pair_code[0] != 0;
+    lv_obj_set_style_bg_color(s_step2_ico, lv_color_hex(s.paired && !pairing ? C_ACC : C_LINE), 0);
+    lv_label_set_text(lv_obj_get_child(s_step2_ico, 0), s.paired && !pairing ? LV_SYMBOL_OK : "2");
+    if (pairing) snprintf(b, sizeof(b), "Entrá a app.datadruida.com.ar/developers, \"Mis placas\", y escribí este código (vence en %d min):", (s.pair_left_s + 59) / 60);
+    else if (s.paired) snprintf(b, sizeof(b), "Vinculada a %s", s.owner[0] ? s.owner : "tu cuenta");
+    else if (s.cloud_msg[0]) snprintf(b, sizeof(b), "%s", s.cloud_msg);
+    else snprintf(b, sizeof(b), "Vinculala a tu cuenta de app.datadruida.com.ar");
+    lv_label_set_text(s_step2_txt, b);
+    lv_label_set_text(s_code_lbl, s.pair_code);
+    if (pairing) lv_obj_remove_flag(s_code_lbl, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(s_code_lbl, LV_OBJ_FLAG_HIDDEN);
+    // Sin WiFi no tiene sentido; ya vinculada, el botón no hace falta.
+    if (online && !s.paired) lv_obj_remove_flag(s_step2_btn, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(s_step2_btn, LV_OBJ_FLAG_HIDDEN);
+    btn_set_text(s_step2_btn, pairing ? LV_SYMBOL_CLOSE "  Cancelar" : LV_SYMBOL_LOOP "  Vincular a mi cuenta");
 
     char qr[64];
     if (online) snprintf(qr, sizeof(qr), "http://%s/", s.ip);

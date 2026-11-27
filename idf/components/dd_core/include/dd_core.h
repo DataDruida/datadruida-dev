@@ -38,6 +38,8 @@ extern "C" {
 #endif
 
 #define DD_MANIFEST_BASE "https://app.datadruida.com.ar/firmware/dd-idf/"
+/* Vinculación con la cuenta y programas de /developers (ver dd_cloud.c). */
+#define DD_SYNC_URL      "https://app.datadruida.com.ar/api/dd/sync"
 
 typedef enum {
     DD_NET_OFF = 0,      // sin red guardada y sin portal abierto
@@ -65,6 +67,8 @@ typedef struct {
     char     ap_ssid[33];       // nombre de la red de configuración
     char     hostname[24];      // dd-xxxxxx  →  http://dd-xxxxxx.local
     char     device_id[16];     // xxxxxx (MAC)
+    char     uid[16];           // MAC completa (12 hex): identidad en la nube
+    char     build[20];         // id de esta compilación (16 hex del SHA-256 del ELF)
     char     admin_key[12];     // clave del equipo
     char     app_name[24];
     char     board_id[48];
@@ -76,6 +80,12 @@ typedef struct {
     char     ota_new_version[32];
     char     ota_msg[96];
     bool     auto_update;
+    /* Cuenta de app.datadruida.com.ar */
+    bool     paired;            // vinculada: la nube le manda los programas
+    char     owner[48];         // a quién (lo que devuelve la nube, ej. "ba***@gmail.com")
+    char     pair_code[8];      // código para vincular ("" si no se está vinculando)
+    int      pair_left_s;       // segundos que le quedan al código
+    char     cloud_msg[96];     // último aviso de la nube (vinculada, error, ...)
 } dd_status_t;
 
 typedef struct {
@@ -117,6 +127,12 @@ void dd_ota_check(void);                  // async: busca versión nueva
 void dd_ota_install(void);                // async: instala la de la nube
 void dd_ota_set_auto(bool on);
 esp_err_t dd_ota_set_manifest_url(const char *url);  // "" = la de fábrica
+
+/* Cuenta: muestra un código por 10 min para vincular la placa en
+ * app.datadruida.com.ar/developers. Vinculada, la placa consulta cada minuto
+ * si hay un programa nuevo para ella y lo instala sola. */
+void dd_pair_start(void);
+void dd_pair_cancel(void);
 
 /* Placa elegida (NVS "board"); las apps headless la usan para el pinout. */
 esp_err_t dd_board_set(const char *board_id);

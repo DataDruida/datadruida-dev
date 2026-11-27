@@ -107,6 +107,7 @@ placa siga el firmware que su dueño compila desde app.datadruida.com.ar/develop
 | `POST /api/ota/upload` (body = .bin) | sí | instalar un .bin local |
 | `POST /api/settings` `{auto_update, manifest}` | sí | |
 | `POST /api/restart` | sí | |
+| `POST /api/pair` `{action:"start"\|"cancel"}` | sí | muestra / cancela el código para vincular a una cuenta |
 | `POST /api/relay` `{ch,on}`, `/api/relays/test`, `/api/relays/off`, `/api/board` | sí | sólo `dd-reles` |
 
 ## El programa del usuario: `app.c` + `dd.h`
@@ -209,9 +210,57 @@ docker run -d --name dd-build --restart unless-stopped -e DD_BUILD_TOKEN=... -p 
 ```
 
 ⚠ El Dockerfile no se probó todavía (esta PC no tiene Docker).
-⚠ Falta: versión por programa. El equipo instala sólo si la versión es mayor,
-y todos los programas salen con la versión de la base: el manifest por placa
-(paso 3) tiene que decidir por "build id" distinto, no por número de versión.
+Lo de "versión por programa" quedó resuelto en el paso 3 (abajo): una placa
+vinculada decide por id de compilación, no por versión.
+
+## Vincular la placa a una cuenta y recibir programas (paso 3)
+
+Código: `components/dd_core/dd_cloud.c` (firmware) y, en `druida-web-deploy`,
+`app/api/dd/{sync,claim,devices,deploy}` + `lib/dd/server.ts` + la vista
+`components/developers/studio/BoardsView.tsx` ("Mis placas" en /developers).
+Migración `0046_dd_devices.sql` (corrida el 27-nov-2026).
+
+**Cómo se usa:**
+1. En la placa: **Vincular a mi cuenta** (pestaña Inicio de la pantalla, o el
+   panel `http://dd-xxxxxx.local` en las placas sin pantalla). Muestra un código
+   de 6 letras (sin 0/O/1/I) que vence a los 10 min.
+2. En `/developers` → **Mis placas**: escribir el código. La placa se entera en
+   ≤4 s ("Vinculada a br***@gmail.com").
+3. Vinculada, la placa consulta `POST /api/dd/sync` **cada 1 min**. Si su cuenta
+   le asignó un programa, recibe una URL firmada (1 h) del bucket `dd-builds`, lo
+   baja e instala solo, con la vuelta atrás de siempre.
+
+**Identidad:** la placa se presenta con su MAC completa (`uid`, 12 hex) y un
+secreto de 32 hex que genera en el primer arranque (NVS `"secret"`). La nube
+guarda sólo el sha256. El código viaja junto con el hash del secreto y, al
+vincular, ese hash pasa a ser el de la placa: el que tiene la placa en la mano
+es el que la vincula. Otra placa que use la misma MAC recibe **403** y no baja
+nada. Una placa reflasheada desde cero (secreto nuevo) también recibe 403 hasta
+que el dueño la desvincule en Mis placas.
+
+**Qué instalar se decide por id de compilación, no por versión.** El id es el
+SHA-256 del ELF (16 hex), que ESP-IDF graba en el descriptor de la app
+(`esp_app_get_elf_sha256` en la placa; `parseAppDesc()` lo lee del `.bin` en la
+webApp: offset 0x20+144). Verificado que coinciden en los dos binarios. Reglas
+(`dd_ota_offer()` en `dd_ota.c`):
+- update **con** `build` (programa de la cuenta) → se instala si es otro id, y
+  nunca el que ya falló (`bad_build`, sale de `esp_ota_get_last_invalid_partition`).
+  Se instala aunque esté apagado "Instalar solas": el usuario lo mandó a propósito.
+- update **sin** `build` (base pública) → sólo si la versión es mayor.
+- Vinculada, la placa **no** lee el manifest público: manda la nube. Si la cuenta
+  no le asignó ningún programa, `/api/dd/sync` le devuelve la base pública.
+
+**La webApp** marca el programa `installed` cuando la placa reporta que corre ese
+id (y ya no está a prueba), y `failed` cuando lo reporta como `bad_build` — ahí
+deja de ofrecérselo. `deploy` rechaza un `.bin` de otro proyecto (pantalla en una
+placa de relés o al revés) leyendo el `project_name` del descriptor.
+
+**Probar sin placa:** `tools/sim_placa.py` habla con `/api/dd/sync` igual que el
+firmware (`code` registra un código y espera la vinculación; `poll` consulta e
+"instala" bajando el `.bin` y comprobando su id; `fail` simula un programa que
+no arranca). Para la webApp local con el compilador local:
+`druida-web-deploy/.env.development.local` con `DD_BUILD_URL` y `DD_BUILD_TOKEN`
+(ignorado por git).
 
 ## Fuentes con acentos
 
@@ -244,3 +293,27 @@ redes, el teclado). Visto en hardware el 26-nov-2026.
   OTA local; la web sigue publicando 0.1.2.
 - Falta probar una vuelta atrás real (subir una imagen que no conecte).
 - `dd-reles` sin probar en hardware.
+- **Paso 3 (27-nov-2026), vinculación + programas por cuenta: PROBADO DE PUNTA A
+  PUNTA con la placa simulada** (webApp local + compilador local, cuenta admin):
+  vincular con el código (la placa ve "vinculada a bm***"), mandar un app.c
+  (compila en ~20 s, la placa lo baja, el id coincide, la web dice "Corriendo tu
+  programa"), error de compilación (línea y columna, no se manda nada) y programa
+  que no arranca (`fail`: la web dice "El programa no arrancó: la placa volvió al
+  anterior" y no se lo vuelve a ofrecer). Falta probarlo en una placa real.
+  - Ojo al probar: dos `sim_placa.py code` con el mismo estado se pisan el código
+    cada 4 s ("Ese código no existe o ya venció"). Una sola a la vez.
+  - Login en `localhost`: Supabase devuelve el login de Google a datadruida.com.ar.
+    Atajo: copiar el `?code=` de esa URL a
+    `http://localhost:3000/auth/callback?code=<code>&next=/developers` (el
+    verificador quedó en la cookie de localhost). Lo definitivo es agregar
+    `http://localhost:3000/**` en Supabase → Authentication → Redirect URLs.
+  - Los programas salen con la versión del repo (hoy **0.1.5**); la base nueva para
+    el comprador tiene que ser 0.1.6 o más (abajo).
+  - `/api/dd/sync` le ofrece la base pública 0.1.3 a una placa vinculada sin
+    programa aunque tenga una versión mayor; la placa la ignora (sólo instala
+    versiones mayores), pero sobra.
+  Quedan filas de prueba en `dd_devices` (`dd00000000b6`, `dd000000006d`).
+- ⚠ Para que la 4.3B del comprador reciba la vinculación, publicar la base nueva
+  como **0.1.6 o más** (tiene la 0.1.5).
+- ⚠ En producción `/api/dd/deploy` responde 503 hasta configurar
+  `DD_BUILD_URL`/`DD_BUILD_TOKEN` en Vercel con el servicio en un VPS.

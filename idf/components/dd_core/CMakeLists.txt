@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "dd_core.c" "dd_wifi.c" "dd_dns.c" "dd_ota.c" "dd_web.c"
+    SRCS "dd_core.c" "dd_wifi.c" "dd_dns.c" "dd_ota.c" "dd_web.c" "dd_cloud.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
     REQUIRES esp_http_server

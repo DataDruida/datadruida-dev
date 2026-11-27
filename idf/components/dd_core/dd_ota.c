@@ -9,7 +9,12 @@
  *
  * Local: POST /api/ota/upload con el .bin como body (panel del equipo).
  *
- * Una versión que ya falló (el bootloader volvió atrás) no se reintenta: si
+ * Cuenta (dd_cloud.c): una placa vinculada no usa el manifest público. La
+ * nube le dice qué imagen tiene que tener (dd_ota_offer) y se decide por id
+ * de compilación, no por versión: todos los programas salen con la versión de
+ * la base, así que "más nueva" no sirve para saber si hay que instalar.
+ *
+ * Una imagen que ya falló (el bootloader volvió atrás) no se reintenta: si
  * no, el equipo bajaría la misma imagen rota en un bucle.
  */
 #include <string.h>
@@ -34,8 +39,9 @@ static const char *TAG = "dd_ota";
 enum { CMD_CHECK = 1, CMD_INSTALL = 2 };
 static QueueHandle_t s_q;
 static char s_manifest[200];
-static char s_bin_url[256];
+static char s_bin_url[768];   // las URLs firmadas del Storage son largas
 static char s_bad_version[32];
+static char s_bad_build[20];
 static bool s_periodic_started;
 
 static void set_state(dd_ota_state_t st, int prog, const char *msg)
@@ -180,27 +186,70 @@ static void do_install(void)
     esp_restart();
 }
 
+bool dd_ota_offer(const char *url, const char *version, const char *build)
+{
+    if (!url || !url[0] || !version) return false;
+    char cur_build[20], cur_ver[32];
+    dd_lock();
+    strlcpy(cur_build, g_dd.build, sizeof(cur_build));
+    strlcpy(cur_ver, g_dd.fw_version, sizeof(cur_ver));
+    dd_unlock();
+    if (build && build[0]) {
+        // Programa de la cuenta: se instala si es otra compilación.
+        if (!strncmp(build, cur_build, 16)) return false;
+        if (s_bad_build[0] && !strncmp(build, s_bad_build, 16)) {
+            set_state(DD_OTA_UP_TO_DATE, 0, "El programa nuevo falló al arrancar: la placa volvió al anterior");
+            return false;
+        }
+    } else {
+        // Base pública: sólo si es más nueva.
+        if (ver_cmp(version, cur_ver) <= 0) return false;
+        if (s_bad_version[0] && !strcmp(version, s_bad_version)) return false;
+    }
+    if (g_dd.ota == DD_OTA_AVAILABLE && !strcmp(s_bin_url, url)) return true;
+    strlcpy(s_bin_url, url, sizeof(s_bin_url));
+    char msg[64];
+    if (build && build[0]) snprintf(msg, sizeof(msg), "Llegó un programa nuevo desde tu cuenta");
+    else snprintf(msg, sizeof(msg), "Versión %s disponible", version);
+    dd_lock(); strlcpy(g_dd.ota_new_version, version, sizeof(g_dd.ota_new_version)); dd_unlock();
+    set_state(DD_OTA_AVAILABLE, 0, msg);
+    ESP_LOGI(TAG, "%s (build %s)", msg, build && build[0] ? build : "-");
+    return true;
+}
+
 static void ota_task(void *arg)
 {
     (void)arg;
     int cmd;
+    // ⚠ No usar pdMS_TO_TICKS(6 h): con FREERTOS_HZ=1000 la cuenta se pasa
+    // de 32 bits y da ~125 s (visto en la 4.3B: consultaba cada 2 min).
+    const TickType_t six_h = (TickType_t)6 * 3600 * configTICK_RATE_HZ;
+    TickType_t wait = six_h;
     for (;;) {
-        // Cada 6 h vuelve a buscar sola (si está online).
-        // ⚠ No usar pdMS_TO_TICKS(6 h): con FREERTOS_HZ=1000 la cuenta se pasa
-        // de 32 bits y da ~125 s (visto en la 4.3B: consultaba cada 2 min).
-        if (xQueueReceive(s_q, &cmd, (TickType_t)6 * 3600 * configTICK_RATE_HZ) != pdTRUE) cmd = CMD_CHECK;
+        if (xQueueReceive(s_q, &cmd, wait) != pdTRUE) cmd = CMD_CHECK;
+        wait = six_h;
+        if (g_dd.ota == DD_OTA_DOWNLOADING) continue;
+        if (cmd == CMD_INSTALL) {
+            if (g_dd.net == DD_NET_ONLINE) do_install();
+            else set_state(DD_OTA_ERROR, 0, "Sin conexión a internet");
+            continue;
+        }
+        // Vinculada (o vinculándose): manda la nube, cada 1 min (4 s mientras
+        // se muestra el código). Un programa de la cuenta se instala siempre:
+        // el usuario lo mandó a propósito.
+        TickType_t w = dd_cloud_tick();
+        if (w) {
+            wait = w;
+            if (g_dd.ota == DD_OTA_AVAILABLE && !g_dd.pending_verify && g_dd.net == DD_NET_ONLINE) do_install();
+            continue;
+        }
         if (g_dd.net != DD_NET_ONLINE) {
             set_state(DD_OTA_ERROR, 0, "Sin conexión a internet");
             continue;
         }
-        if (g_dd.ota == DD_OTA_DOWNLOADING) continue;
-        if (cmd == CMD_CHECK) {
-            do_check();
-            // Una imagen a prueba no se reemplaza por otra hasta verificarse.
-            if (g_dd.ota == DD_OTA_AVAILABLE && g_dd.auto_update && !g_dd.pending_verify) do_install();
-        } else if (cmd == CMD_INSTALL) {
-            do_install();
-        }
+        do_check();
+        // Una imagen a prueba no se reemplaza por otra hasta verificarse.
+        if (g_dd.ota == DD_OTA_AVAILABLE && g_dd.auto_update && !g_dd.pending_verify) do_install();
     }
 }
 
@@ -213,6 +262,7 @@ esp_err_t dd_ota_init(void)
     esp_app_desc_t d;
     if (bad && esp_ota_get_partition_description(bad, &d) == ESP_OK) {
         strlcpy(s_bad_version, d.version, sizeof(s_bad_version));
+        for (int i = 0; i < 8; i++) snprintf(s_bad_build + i * 2, 3, "%02x", d.app_elf_sha256[i]);
         ESP_LOGW(TAG, "La versión %s falló y se volvió atrás", s_bad_version);
         snprintf(g_dd.ota_msg, sizeof(g_dd.ota_msg), "La versión %s falló: se volvió a la anterior", s_bad_version);
         g_dd.ota = DD_OTA_ERROR;
@@ -300,3 +350,5 @@ esp_err_t dd_ota_from_upload(httpd_req_t *req)
     set_state(DD_OTA_DONE, 100, "Firmware instalado. Reiniciando...");
     return ESP_OK;
 }
+
+const char *dd_ota_bad_build(void) { return s_bad_build; }

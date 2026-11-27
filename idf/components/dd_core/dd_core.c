@@ -23,6 +23,7 @@
 static const char *TAG = "dd_core";
 
 dd_status_t      g_dd;
+char g_dd_secret[33];
 dd_core_config_t g_dd_cfg;
 static SemaphoreHandle_t s_mutex;
 
@@ -213,6 +214,20 @@ esp_err_t dd_core_start(const dd_core_config_t *cfg)
     snprintf(g_dd.device_id, sizeof(g_dd.device_id), "%02x%02x%02x", mac[3], mac[4], mac[5]);
     snprintf(g_dd.hostname, sizeof(g_dd.hostname), "dd-%s", g_dd.device_id);
     snprintf(g_dd.ap_ssid, sizeof(g_dd.ap_ssid), "DataDruida-%02X%02X", mac[4], mac[5]);
+    snprintf(g_dd.uid, sizeof(g_dd.uid), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    // Cada compilación tiene un SHA-256 de ELF distinto: es lo que la nube usa
+    // para saber qué programa tiene la placa (la versión es la de la base y se
+    // repite en todos los programas).
+    esp_app_get_elf_sha256(g_dd.build, 17);
+
+    // Secreto del equipo para la nube: se genera una vez y no sale de la placa
+    // salvo hacia app.datadruida.com.ar (que guarda sólo su hash).
+    if (dd_nvs_get_str("secret", g_dd_secret, sizeof(g_dd_secret)) != ESP_OK || strlen(g_dd_secret) != 32) {
+        for (int i = 0; i < 16; i++) snprintf(g_dd_secret + i * 2, 3, "%02x", (unsigned)(esp_random() & 0xff));
+        dd_nvs_set_str("secret", g_dd_secret);
+    }
+    g_dd.paired = dd_nvs_get_u8("paired", 0) != 0;
+    dd_nvs_get_str("owner", g_dd.owner, sizeof(g_dd.owner));
 
     if (dd_nvs_get_str("key", g_dd.admin_key, sizeof(g_dd.admin_key)) != ESP_OK ||
         strlen(g_dd.admin_key) < 6) {
@@ -257,6 +272,7 @@ esp_err_t dd_core_start(const dd_core_config_t *cfg)
              g_dd.hostname, safe ? "SI" : "no");
 
     ESP_ERROR_CHECK(dd_ota_init());
+    dd_cloud_init();
     ESP_ERROR_CHECK(dd_wifi_init());
     ESP_ERROR_CHECK(dd_web_start());
 

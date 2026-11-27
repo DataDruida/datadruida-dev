@@ -166,6 +166,12 @@ static esp_err_t h_status(httpd_req_t *req)
     cJSON_AddStringToObject(j, "ota_msg", st.ota_msg);
     cJSON_AddBoolToObject(j, "auto_update", st.auto_update);
     cJSON_AddBoolToObject(j, "has_screen", g_dd_cfg.has_screen);
+    cJSON_AddStringToObject(j, "build", st.build);
+    cJSON_AddBoolToObject(j, "paired", st.paired);
+    cJSON_AddStringToObject(j, "owner", st.owner);
+    cJSON_AddStringToObject(j, "pair_code", st.pair_code);
+    cJSON_AddNumberToObject(j, "pair_left_s", st.pair_left_s);
+    cJSON_AddStringToObject(j, "cloud_msg", st.cloud_msg);
     cJSON_AddNumberToObject(j, "uptime_s", (double)(esp_timer_get_time() / 1000000));
     cJSON_AddNumberToObject(j, "heap_kb", (double)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
     // La clave sólo se muestra a quien está al lado del equipo (portal).
@@ -249,6 +255,18 @@ static esp_err_t h_settings(httpd_req_t *req)
     return send_ok(req, "Guardado");
 }
 
+/* {"action":"start"|"cancel"}: muestra o cancela el código para vincular. */
+static esp_err_t h_pair(httpd_req_t *req)
+{
+    if (dd_web_auth(req) != ESP_OK) return ESP_OK;
+    char body[64];
+    if (dd_web_read_body(req, body, sizeof(body)) < 0) return send_err(req, "400 Bad Request", "Body inválido");
+    const bool cancel = strstr(body, "cancel") != NULL;
+    if (cancel) dd_pair_cancel();
+    else dd_pair_start();
+    return send_ok(req, NULL);
+}
+
 static esp_err_t h_restart(httpd_req_t *req)
 {
     if (dd_web_auth(req) != ESP_OK) return ESP_OK;
@@ -288,6 +306,7 @@ esp_err_t dd_web_start(void)
         { .uri = "/api/ota/upload", .method = HTTP_POST, .handler = h_ota_upload },
         { .uri = "/api/settings",   .method = HTTP_POST, .handler = h_settings },
         { .uri = "/api/restart",    .method = HTTP_POST, .handler = h_restart },
+        { .uri = "/api/pair",       .method = HTTP_POST, .handler = h_pair },
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) httpd_register_uri_handler(s_srv, &routes[i]);
     httpd_register_err_handler(s_srv, HTTPD_404_NOT_FOUND, h_404);

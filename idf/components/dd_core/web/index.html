@@ -62,6 +62,16 @@ pre.log{background:var(--bg);border:1px solid var(--line);border-radius:8px;padd
     <p class="mut"><a href="#" onclick="manual();return false">Escribir el nombre a mano</a> (redes ocultas)</p>
   </section>
 
+  <section>
+    <h2>Tu cuenta de DataDruida</h2>
+    <p id="acct" class="mut"></p>
+    <p id="pcode" class="hide" style="font-size:34px;letter-spacing:6px;font-weight:700;margin:6px 0;color:var(--acc)"></p>
+    <div class="row">
+      <button id="pairbtn" onclick="post('/api/pair',{action:'start'})">Vincular a mi cuenta</button>
+      <button id="paircancel" class="sec hide" onclick="post('/api/pair',{action:'cancel'})">Cancelar</button>
+    </div>
+  </section>
+
   <section id="relsec" class="hide">
     <h2>Probar la placa</h2>
     <div id="boardsel" class="hide">
@@ -126,6 +136,12 @@ async function load(){try{S=await (await fetch('/api/status')).json()}catch(e){$
   $('instbtn').classList.toggle('hide',S.ota!='available');
   $('otabar').classList.toggle('hide',S.ota!='downloading');$('otafill').style.width=S.ota_progress+'%';
   $('auto').checked=S.auto_update;
+  const pc=S.pair_code||'';$('pcode').classList.toggle('hide',!pc);$('pcode').textContent=pc;
+  $('paircancel').classList.toggle('hide',!pc);$('pairbtn').classList.toggle('hide',!!pc);
+  $('pairbtn').textContent=S.paired?'Vincular a otra cuenta':'Vincular a mi cuenta';
+  $('acct').textContent=pc?('Entrá a app.datadruida.com.ar/developers → Mis placas y escribí este código (vence en '+Math.ceil(S.pair_left_s/60)+' min).')
+    :S.paired?('Vinculada a '+S.owner+'. Los programas que mandes desde /developers llegan solos en menos de un minuto.'+(S.cloud_msg?' '+S.cloud_msg:''))
+    :(S.cloud_msg||'Vinculala para mandarle programas desde app.datadruida.com.ar/developers, sin cable.');
   $('sys').textContent='Placa: '+(S.board||'—')+' · equipo '+S.device+' · encendido hace '+Math.round(S.uptime_s/60)+' min · RAM libre '+S.heap_kb+' KB'+(S.pending_verify?' · versión a prueba':'');
   if(S.relays||S.boards){$('relsec').classList.remove('hide');drawRelays()}
   if(S.program){$('progsec').classList.remove('hide');const p=S.program;
